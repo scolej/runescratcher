@@ -1,5 +1,6 @@
 (define-module (world)
   #:use-module (ice-9 match)
+  #:use-module (srfi srfi-9)
   #:use-module (test)
   #:export
   (make-pos
@@ -12,10 +13,6 @@
    world-add-wall
    blank-world))
 
-(use-modules
-    (ice-9 match)
-    (test))
-
 ;; A position in the world.
 (define (make-pos x y)
   (cons x y))
@@ -24,9 +21,31 @@
 (define (pos-map-components p f)
   (f (pos-x p) (pos-y p)))
 
+(define (creature? c) (not (boolean? c)))
+
+(define-record-type <world>
+  (make-world) world?
+  (cells world-cells world-set-cells!)
+  (units world-units world-set-units!))
+
+(define (blank-world size)
+  (let ((w (make-world)))
+    (world-set-cells! w (make-array #f size size))
+    (world-set-units! w (make-hash-table 20))
+    w))
+
+(define (world-name-creature world pos name)
+  (let ((c (world-get-cell world pos)))
+    (if (creature? c)
+        (hash-set! (world-units world)
+                   name pos))))
+
+(define (world-find-unit world name)
+  (hash-ref (world-units world) name))
+
 ;; Wrap a position in the world so it's valid.
 (define (world-wrap-position world pos)
-  (match-let (((w h) (array-dimensions world)))
+  (match-let (((w h) (array-dimensions (world-cells world))))
     (let ((x (modulo (pos-x pos) w))
           (y (modulo (pos-y pos) h)))
       (make-pos x y))))
@@ -34,22 +53,21 @@
 (define (world-add-wall world pos)
   (let ((p (world-wrap-position world pos)))
     (unless (world-cell-creature? world p)
-      (array-set! world #t (pos-x p) (pos-y p)))))
+      (array-set! (world-cells world) #t (pos-x p) (pos-y p)))))
 
 ;; Gets what's in the world at the provided position.
 ;; Returns #t for a wall, #f for nothing, or a
 ;; creature.
 (define (world-get-cell world pos)
   (let ((p (world-wrap-position world pos)))
-    (array-ref world (pos-x p) (pos-y p))))
+    (array-ref (world-cells world) (pos-x p) (pos-y p))))
 
 (define (world-cell-empty? world pos)
   (let ((c (world-get-cell world pos)))
     (and (boolean? c) (not c))))
 
 (define (world-cell-creature? world pos)
-  (let ((c (world-get-cell world pos)))
-    (not (boolean? c))))
+  (creature? (world-get-cell world pos)))
 
 ;; Update world by moving the creature at pos to the
 ;; new position.
@@ -66,8 +84,12 @@
              move)))
     (if (and (world-cell-creature? world pos)
              (world-cell-empty? world new-pos))
-        (world-spawn-creature
-         world new-pos (world-remove-creature world pos)))))
+        (let ((c (world-remove-creature world pos)))
+          (world-spawn-creature world new-pos c)
+          ;; TODO cooked in assumption that a unit is its name
+          ;; It's name can be different.
+          (when (hash-ref (world-units world) c)
+            (hash-set! (world-units world) c new-pos))))))
 
 ;; Introduce a new creature into world at given
 ;; position, if there's space available. Returns #t if
@@ -76,23 +98,20 @@
   (let* ((p (world-wrap-position world pos))
          (x (pos-x p))
          (y (pos-y p)))
-    (if (array-ref world x y) #f
+    (if (array-ref (world-cells world) x y) #f
         (begin
-          (array-set! world creature x y)
+          (array-set! (world-cells world) creature x y)
           #t))))
 
 (define (world-remove-creature world pos)
   (let* ((p (world-wrap-position world pos))
          (x (pos-x p))
          (y (pos-y p))
-         (c (array-ref world x y)))
+         (c (array-ref (world-cells world) x y)))
     (if (boolean? c) #f
         (begin
-          (array-set! world #f x y)
+          (array-set! (world-cells world) #f x y)
           c))))
-
-(define (blank-world size)
-  (make-array #f size size))
 
 ;;
 ;;
@@ -104,26 +123,31 @@
       (world-get-cell world (make-pos 0 0)))
 
 (world-spawn-creature world (make-pos 0 0) 'player)
+(world-name-creature world (make-pos 0 0) 'player)
 
 (test "there is the player"
-      'player
-      (world-get-cell world (make-pos 0 0)))
+      (list 'player (make-pos 0 0))
+      (list
+       (world-get-cell world (make-pos 0 0))
+       (world-find-unit world 'player)))
 
 (world-move-creature world (make-pos 0 0) (make-pos 1 1))
 
 (test "player moves north east"
-      (list #f 'player)
+      (list #f 'player (make-pos 1 1))
       (list
        (world-get-cell world (make-pos 0 0))
-       (world-get-cell world (make-pos 1 1))))
+       (world-get-cell world (make-pos 1 1))
+       (world-find-unit world 'player)))
 
 (world-move-creature world (make-pos 1 1) 'east)
 
 (test "player moves east"
-      (list #f 'player)
+      (list #f 'player (make-pos 2 1))
       (list
        (world-get-cell world (make-pos 1 1))
-       (world-get-cell world (make-pos 2 1))))
+       (world-get-cell world (make-pos 2 1))
+       (world-find-unit world 'player)))
 
 (test "world wraps"
       (list 'player 'player)
