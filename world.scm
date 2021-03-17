@@ -26,7 +26,14 @@
 (define-record-type <world>
   (make-world) world?
   (cells world-cells world-set-cells!)
+  ;; Hash from unit name to position in the world.
   (units world-units world-set-units!))
+
+(define-record-type <named-creature>
+  (make-named-creature name creature)
+  named-creature?
+  (name named-creature-name)
+  (creature named-creature-creature))
 
 (define (blank-world size)
   (let ((w (make-world)))
@@ -34,11 +41,49 @@
     (world-set-units! w (make-hash-table 20))
     w))
 
-(define (world-name-creature world pos name)
+;; Gets what's in the world at the provided position.
+;; Returns #t for a wall, #f for nothing, or a
+;; creature.
+(define (world-get-cell world pos)
+  (let* ((p (world-wrap-position world pos))
+         (v (array-ref (world-cells world) (pos-x p) (pos-y p))))
+    (cond
+     ((named-creature? v) (named-creature-creature v))
+     (#t v))))
+
+(define (world-cell-empty? world pos)
   (let ((c (world-get-cell world pos)))
-    (if (creature? c)
-        (hash-set! (world-units world)
-                   name pos))))
+    (and (boolean? c) (not c))))
+
+(define (world-cell-creature? world pos)
+  (let* ((p (world-wrap-position world pos))
+         (px (pos-x p))
+         (py (pos-y p)))
+    (named-creature?
+     (array-ref (world-cells world) px py))))
+
+;; Introduce a new creature into world at given
+;; position, if there's space available. Returns #t if
+;; successful, otherwise #f.
+(define world-spawn-creature
+  (case-lambda
+   ;; Allow naming the creature for later look-up.
+   ((world pos creature name)
+    (let* ((p (world-wrap-position world pos))
+           (x (pos-x p))
+           (y (pos-y p)))
+      (if (not (world-cell-empty? world p)) #f
+          (begin
+            (array-set!
+             (world-cells world)
+             (make-named-creature name creature)
+             x y)
+            (hash-set! (world-units world) name p)
+            #t))))
+   ;; Anonymous creature.
+   ((world pos creature)
+    (world-spawn-creature
+     world pos creature (gensym "anon-creature-")))))
 
 (define (world-find-unit world name)
   (hash-ref (world-units world) name))
@@ -55,20 +100,6 @@
     (unless (world-cell-creature? world p)
       (array-set! (world-cells world) #t (pos-x p) (pos-y p)))))
 
-;; Gets what's in the world at the provided position.
-;; Returns #t for a wall, #f for nothing, or a
-;; creature.
-(define (world-get-cell world pos)
-  (let ((p (world-wrap-position world pos)))
-    (array-ref (world-cells world) (pos-x p) (pos-y p))))
-
-(define (world-cell-empty? world pos)
-  (let ((c (world-get-cell world pos)))
-    (and (boolean? c) (not c))))
-
-(define (world-cell-creature? world pos)
-  (creature? (world-get-cell world pos)))
-
 ;; Update world by moving the creature at pos to the
 ;; new position.
 (define (world-move-creature world pos move)
@@ -84,24 +115,14 @@
              move)))
     (if (and (world-cell-creature? world pos)
              (world-cell-empty? world new-pos))
-        (let ((c (world-remove-creature world pos)))
-          (world-spawn-creature world new-pos c)
-          ;; TODO cooked in assumption that a unit is its name
-          ;; It's name can be different.
-          (when (hash-ref (world-units world) c)
-            (hash-set! (world-units world) c new-pos))))))
-
-;; Introduce a new creature into world at given
-;; position, if there's space available. Returns #t if
-;; successful, otherwise #f.
-(define (world-spawn-creature world pos creature)
-  (let* ((p (world-wrap-position world pos))
-         (x (pos-x p))
-         (y (pos-y p)))
-    (if (array-ref (world-cells world) x y) #f
-        (begin
-          (array-set! (world-cells world) creature x y)
-          #t))))
+        (let* ((px (pos-x pos))
+               (py (pos-y pos))
+               (npx (pos-x new-pos))
+               (npy (pos-y new-pos))
+               (nc (array-ref (world-cells world) px py)))
+          (array-set! (world-cells world) #f px py)
+          (array-set! (world-cells world) nc npx npy)
+          (hash-set! (world-units world) (named-creature-name nc) new-pos)))))
 
 (define (world-remove-creature world pos)
   (let* ((p (world-wrap-position world pos))
@@ -122,14 +143,13 @@
       #f
       (world-get-cell world (make-pos 0 0)))
 
-(world-spawn-creature world (make-pos 0 0) 'player)
-(world-name-creature world (make-pos 0 0) 'player)
+(world-spawn-creature world (make-pos 0 0) 'player 'bob)
 
 (test "there is the player"
       (list 'player (make-pos 0 0))
       (list
        (world-get-cell world (make-pos 0 0))
-       (world-find-unit world 'player)))
+       (world-find-unit world 'bob)))
 
 (world-move-creature world (make-pos 0 0) (make-pos 1 1))
 
@@ -138,7 +158,7 @@
       (list
        (world-get-cell world (make-pos 0 0))
        (world-get-cell world (make-pos 1 1))
-       (world-find-unit world 'player)))
+       (world-find-unit world 'bob)))
 
 (world-move-creature world (make-pos 1 1) 'east)
 
@@ -147,7 +167,7 @@
       (list
        (world-get-cell world (make-pos 1 1))
        (world-get-cell world (make-pos 2 1))
-       (world-find-unit world 'player)))
+       (world-find-unit world 'bob)))
 
 (test "world wraps"
       (list 'player 'player)
