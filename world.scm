@@ -14,10 +14,11 @@
    blank-world))
 
 ;; A position in the world.
-(define (make-pos x y)
-  (cons x y))
-(define pos-x car)
-(define pos-y cdr)
+(define-record-type <position>
+  (make-pos x y) pos?
+  (x pos-x)
+  (y pos-y))
+
 (define (pos-map-components p f)
   (f (pos-x p) (pos-y p)))
 
@@ -26,8 +27,8 @@
 (define-record-type <world>
   (make-world) world?
   (cells world-cells world-set-cells!)
-  ;; Hash from unit name to position in the world.
-  (units world-units world-set-units!))
+  ;; Hash from creature name to position in the world.
+  (creatures world-creatures world-set-creatures!))
 
 (define-record-type <named-creature>
   (make-named-creature name creature)
@@ -38,7 +39,7 @@
 (define (blank-world size)
   (let ((w (make-world)))
     (world-set-cells! w (make-array #f size size))
-    (world-set-units! w (make-hash-table 20))
+    (world-set-creatures! w (make-hash-table 20))
     w))
 
 ;; Gets what's in the world at the provided position.
@@ -78,15 +79,15 @@
              (world-cells world)
              (make-named-creature name creature)
              x y)
-            (hash-set! (world-units world) name p)
+            (hash-set! (world-creatures world) name p)
             #t))))
    ;; Anonymous creature.
    ((world pos creature)
     (world-spawn-creature
      world pos creature (gensym "anon-creature-")))))
 
-(define (world-find-unit world name)
-  (hash-ref (world-units world) name))
+(define (world-find-creature world name)
+  (hash-ref (world-creatures world) name))
 
 ;; Wrap a position in the world so it's valid.
 (define (world-wrap-position world pos)
@@ -102,27 +103,34 @@
 
 ;; Update world by moving the creature at pos to the
 ;; new position.
-(define (world-move-creature world pos move)
-  (let ((new-pos
-         (if (symbol? move)
-             (pos-map-components
-              pos
-              (case move
-                ((north) (lambda (x y) (make-pos x (+ y 1))))
-                ((south) (lambda (x y) (make-pos x (- y 1))))
-                ((east) (lambda (x y) (make-pos (+ x 1) y)))
-                ((west) (lambda (x y) (make-pos (- x 1) y)))))
-             move)))
+(define (world-move-creature world what move)
+  (let* ((pos
+          (cond
+           ((symbol? what) (world-find-creature world what))
+           ((pos? what) what)
+           (#t (error ":["))))
+         (new-pos
+          (if (symbol? move)
+              (pos-map-components
+               pos
+               (case move
+                 ((north) (lambda (x y) (make-pos x (+ y 1))))
+                 ((south) (lambda (x y) (make-pos x (- y 1))))
+                 ((east) (lambda (x y) (make-pos (+ x 1) y)))
+                 ((west) (lambda (x y) (make-pos (- x 1) y)))))
+              move)))
     (if (and (world-cell-creature? world pos)
              (world-cell-empty? world new-pos))
-        (let* ((px (pos-x pos))
-               (py (pos-y pos))
-               (npx (pos-x new-pos))
-               (npy (pos-y new-pos))
+        (let* ((pw (world-wrap-position world pos))
+               (px (pos-x pw))
+               (py (pos-y pw))
+               (npw (world-wrap-position world new-pos))
+               (npx (pos-x npw))
+               (npy (pos-y npw))
                (nc (array-ref (world-cells world) px py)))
           (array-set! (world-cells world) #f px py)
           (array-set! (world-cells world) nc npx npy)
-          (hash-set! (world-units world) (named-creature-name nc) new-pos)))))
+          (hash-set! (world-creatures world) (named-creature-name nc) new-pos)))))
 
 (define (world-remove-creature world pos)
   (let* ((p (world-wrap-position world pos))
@@ -149,7 +157,7 @@
       (list 'player (make-pos 0 0))
       (list
        (world-get-cell world (make-pos 0 0))
-       (world-find-unit world 'bob)))
+       (world-find-creature world 'bob)))
 
 (world-move-creature world (make-pos 0 0) (make-pos 1 1))
 
@@ -158,7 +166,7 @@
       (list
        (world-get-cell world (make-pos 0 0))
        (world-get-cell world (make-pos 1 1))
-       (world-find-unit world 'bob)))
+       (world-find-creature world 'bob)))
 
 (world-move-creature world (make-pos 1 1) 'east)
 
@@ -167,7 +175,23 @@
       (list
        (world-get-cell world (make-pos 1 1))
        (world-get-cell world (make-pos 2 1))
-       (world-find-unit world 'bob)))
+       (world-find-creature world 'bob)))
+
+(world-move-creature world 'bob 'south)
+
+(test "player moves south"
+      (list #f 'player (make-pos 2 0))
+      (list
+       (world-get-cell world (make-pos 2 1))
+       (world-get-cell world (make-pos 2 0))
+       (world-find-creature world 'bob)))
+
+;; Move off left edge.
+(world-move-creature world 'bob (make-pos 0 0))
+(world-move-creature world 'bob 'west)
+
+;; Move him to a known position.
+(world-move-creature world 'bob (make-pos 2 1))
 
 (test "world wraps"
       (list 'player 'player)

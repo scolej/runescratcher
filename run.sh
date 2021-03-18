@@ -1,1 +1,4 @@
-GUILE_LOAD_PATH=.:/home/sjc/ev/prog/info-bar guile main.scm
+export GUILE_LOAD_PATH=.:/home/sjc/ev/prog/info-bar
+guild compile main.scm
+guild compile world.scm
+guile main.scm

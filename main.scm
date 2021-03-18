@@ -4,12 +4,12 @@
  (ncurses curses)
  (world))
 
-(define world (blank-world 15))
-(world-spawn-creature world (make-pos 0 0) 'player)
+(define world (blank-world 300))
+(world-spawn-creature world (make-pos 0 0) 'wizard 'player)
 (world-spawn-creature world (make-pos 3 3) 'monster)
-(world-set-cell world (make-pos 5 5) #t)
-(world-set-cell world (make-pos 5 4) #t)
-(world-set-cell world (make-pos 5 3) #t)
+(world-add-wall world (make-pos 5 5))
+(world-add-wall world (make-pos 5 4))
+(world-add-wall world (make-pos 5 3))
 
 ;;
 
@@ -29,25 +29,29 @@
         (let* ((v (world-get-cell world (make-pos x y)))
                (c (cond
                    ((boolean? v) (if v "#" #f))
-                   ((eq? 'player v) "@")
+                   ((eq? 'wizard v) "@")
                    (#t "?"))))
-          (when c (addstr stdscr c #:x x #:y y))))))
+          (when c (addstr stdscr c #:x x #:y (- h y 1)))))))
   (refresh stdscr))
 
 (define (go)
   (draw)
   (let ((c (getch stdscr)))
     ;; TODO-NEXT character movement, how to track player in world?
-    ;; (cond
-    ;;  ((eqv? c KEY_LEFT)
-    ;;   (pos-update-x! char-pos (lambda (x) (- x 1))))
-    ;;  ((eqv? c KEY_RIGHT)
-    ;;   (pos-update-x! char-pos (lambda (x) (+ x 1))))
-    ;;  ((eqv? c KEY_UP)
-    ;;   (pos-update-y! char-pos (lambda (y) (- y 1))))
-    ;;  ((eqv? c KEY_DOWN)
-    ;;   (pos-update-y! char-pos (lambda (y) (+ y 1)))))
+    (cond
+     ((eqv? c KEY_LEFT)
+      (world-move-creature world 'player 'west))
+     ((eqv? c KEY_RIGHT)
+      (world-move-creature world 'player 'east))
+     ((eqv? c KEY_UP)
+      (world-move-creature world 'player 'north))
+     ((eqv? c KEY_DOWN)
+      (world-move-creature world 'player 'south)))
     (unless (eqv? c #\q) (go))))
 
-(go)
-(endwin)
+(with-error-to-file "err.log"
+  (lambda ()
+    (with-output-to-file "out.log"
+      (lambda ()
+        (go)
+        (endwin)))))

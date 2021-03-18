@@ -1,0 +1,26 @@
+---------- 2021-03-15 08:31 ----------
+
+Added unit tracking with a hash map.
+
+How to do `hash-update key fun` so that you only compute the
+hash once? (Instead of `hash-ref` and then `hash-set`.)
+
+The current way of testing is crappy.
+
+- Multiple things are creeping into a single assertion.
+- Describing a single assertion every time is overkill.
+
+Way forward:
+
+- A library of methods which produce descriptive failures: assertion library.
+- Groupings of actions and assertions into test-cases.
+- A way to run the cases easily.
+
+---------- 2021-03-19 08:36 ----------
+
+A world & a moving @!
+
+Next:
+
+- Load a world of walls from a text file.
+- Simple creature AI?
