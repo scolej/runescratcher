@@ -24,3 +24,8 @@ Next:
 
 - Load a world of walls from a text file.
 - Simple creature AI?
+
+---
+
+ffmpeg -y -video_size 802x602 -framerate 30 -f x11grab -i :0.0 -pix_fmt yuv420p temp.mp4
+mv temp.mp4 vid-$(date +%Y%m%d%H%M%S).mp4

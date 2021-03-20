@@ -1,22 +1,20 @@
 (define-module (loader)
-  #:use-module (srfi srfi-64)
+  #:use-module (srfi srfi-1)
+  #:use-module (test)
   #:export
   (read-txt-to-array))
 
+;; Read STR into an array of character and reverse the vertical-ordering.
 (define (read-txt-to-array str)
-  (list->array
-   2
-   (map string->list
-        (string-split str #\linefeed))))
+  (let* ((lines (string-split str #\linefeed))
+         (max-length (reduce max 1 (map string-length lines)))
+         (pad (lambda (str) (string-pad-right str max-length #\space)))
+         (padded (map pad lines)))
+    (list->array 2 (reverse (map string->list padded)))))
 
-(test-begin "file loading")
-
-(test-assert "simple load"
-  (array-equal?
-   (list->array 2 '((#\a #\b #\c)
-                    (#\d #f #f)
-                    (#\e #\f #f)))
-   (read-txt-to-array "abc\nd\nef")))
-
-
-(test-end "file loading")
+(test "simple read"
+      array-equal?
+      (list->array 2 '((#\e #\f #\space)
+                       (#\d #\space #\space)
+                       (#\a #\b #\c)))
+      (read-txt-to-array "abc\nd\nef"))
