@@ -146,81 +146,61 @@
           (array-set! (world-cells world) #f x y)
           c))))
 
-;;
-;;
+(test-case "moving creatures around the world"
+  (let ((world (blank-world 10)))
+    ;; there is nothing
+    (assert-equal #f (world-get-cell world (make-pos 0 0)))
+    ;; there is the player
+    (world-spawn-creature world (make-pos 0 0) 'player 'bob)
+    (assert-equal
+     (list 'player (make-pos 0 0))
+     (list
+      (world-get-cell world (make-pos 0 0))
+      (world-find-creature world 'bob)))
+    ;; player moves north east
+    (world-move-creature world (make-pos 0 0) (make-pos 1 1))
+    (assert-equal
+     (list #f 'player (make-pos 1 1))
+     (list
+      (world-get-cell world (make-pos 0 0))
+      (world-get-cell world (make-pos 1 1))
+      (world-find-creature world 'bob)))
+    ;; player moves east
+    (world-move-creature world (make-pos 1 1) 'east)
+    (assert-equal
+     (list #f 'player (make-pos 2 1))
+     (list
+      (world-get-cell world (make-pos 1 1))
+      (world-get-cell world (make-pos 2 1))
+      (world-find-creature world 'bob)))
+    ;; player moves south
+    (world-move-creature world 'bob 'south)
+    (assert-equal
+     (list #f 'player (make-pos 2 0))
+     (list
+      (world-get-cell world (make-pos 2 1))
+      (world-get-cell world (make-pos 2 0))
+      (world-find-creature world 'bob)))
+    ;; Move off left edge.
+    (world-move-creature world 'bob (make-pos 0 0))
+    (world-move-creature world 'bob 'west)
+    ;; Move him to a known position.
+    (world-move-creature world 'bob (make-pos 2 1))
+    ;; world wraps
+    (assert-equal
+     (list 'player 'player)
+     (map (lambda (p) (world-get-cell world p))
+          (list
+           (make-pos 12 11)
+           (make-pos -8 -9))))
+    ;; player is gone
+    (world-remove-creature world (make-pos 1 1))
+    (assert-equal #f (world-get-cell world (make-pos 1 1)))
+    ;; remove more than once doesn't break
+    (world-remove-creature world (make-pos 1 1))
+    (assert-equal #f (world-get-cell world (make-pos 1 1)))))
 
-(define world (blank-world 10))
-
-;; there is nothing
-(test #f (world-get-cell world (make-pos 0 0)))
-
-(world-spawn-creature world (make-pos 0 0) 'player 'bob)
-
-;; there is the player
-(test
- (list 'player (make-pos 0 0))
- (list
-  (world-get-cell world (make-pos 0 0))
-  (world-find-creature world 'bob)))
-
-(world-move-creature world (make-pos 0 0) (make-pos 1 1))
-
-;; player moves north east
-(test
- (list #f 'player (make-pos 1 1))
- (list
-  (world-get-cell world (make-pos 0 0))
-  (world-get-cell world (make-pos 1 1))
-  (world-find-creature world 'bob)))
-
-(world-move-creature world (make-pos 1 1) 'east)
-
-;; player moves east
-(test
- (list #f 'player (make-pos 2 1))
- (list
-  (world-get-cell world (make-pos 1 1))
-  (world-get-cell world (make-pos 2 1))
-  (world-find-creature world 'bob)))
-
-(world-move-creature world 'bob 'south)
-
-;; player moves south
-(test
- (list #f 'player (make-pos 2 0))
- (list
-  (world-get-cell world (make-pos 2 1))
-  (world-get-cell world (make-pos 2 0))
-  (world-find-creature world 'bob)))
-
-;; Move off left edge.
-(world-move-creature world 'bob (make-pos 0 0))
-(world-move-creature world 'bob 'west)
-
-;; Move him to a known position.
-(world-move-creature world 'bob (make-pos 2 1))
-
-;; world wraps
-(test
- (list 'player 'player)
- (map (lambda (p) (world-get-cell world p))
-      (list
-       (make-pos 12 11)
-       (make-pos -8 -9))))
-
-(world-remove-creature world (make-pos 1 1))
-
-;; player is gone
-(test #f (world-get-cell world (make-pos 1 1)))
-
-(world-remove-creature world (make-pos 1 1))
-
-;; remove more than once doesn't break
-(test #f (world-get-cell world (make-pos 1 1)))
-
-;;
-;;
-;;
+
 
 ;; Returns an array suitable for use as world cells by
 ;; interpreting characters in STR.
@@ -245,21 +225,22 @@
         (array-ref src j i))))
     result))
 
-(let ((w (make-world))
-      (cells (world-read-array "###\n# #\n # ")))
-  (world-set-cells! w cells)
-  (test '(3 3) (array-dimensions cells))
-  (let ((test (lambda (v x y)
-                (test v (world-get-cell w (make-pos x y))))))
-    (test #f 0 0)
-    (test #t 1 0)
-    (test #f 2 0)
-    (test #t 0 1)
-    (test #f 1 1)
-    (test #t 2 1)
-    (test #t 0 2)
-    (test #t 1 2)
-    (test #t 2 2)))
+(test-case "load world from file"
+ (let ((w (make-world))
+       (cells (world-read-array "###\n# #\n # ")))
+   (world-set-cells! w cells)
+   (assert-equal '(3 3) (array-dimensions cells))
+   (let ((test (lambda (v x y)
+                 (assert-equal v (world-get-cell w (make-pos x y))))))
+     (test #f 0 0)
+     (test #t 1 0)
+     (test #f 2 0)
+     (test #t 0 1)
+     (test #f 1 1)
+     (test #t 2 1)
+     (test #t 0 2)
+     (test #t 1 2)
+     (test #t 2 2))))
 
 (define (make-world-from-file file)
   (let* ((str (call-with-input-file file
