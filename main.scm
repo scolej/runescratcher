@@ -4,7 +4,8 @@
  (ncurses curses)
  (world))
 
-(define world (blank-world 300))
+(define world (make-world-from-file "map.txt"))
+;; (define world (blank-world 300))
 (world-spawn-creature world (make-pos 0 0) 'wizard 'player)
 (world-spawn-creature world (make-pos 3 3) 'monster)
 (world-add-wall world (make-pos 5 5))

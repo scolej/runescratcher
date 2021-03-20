@@ -1,6 +1,8 @@
 (define-module (world)
   #:use-module (ice-9 match)
+  #:use-module (ice-9 textual-ports)
   #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-1)
   #:use-module (test)
   #:export
   (make-pos
@@ -11,7 +13,8 @@
    world-spawn-creature
    world-remove-creature
    world-add-wall
-   blank-world))
+   blank-world
+   make-world-from-file))
 
 ;; A position in the world.
 (define-record-type <position>
@@ -25,7 +28,8 @@
 (define (creature? c) (not (boolean? c)))
 
 (define-record-type <world>
-  (make-world) world?
+  (make-world)
+  world?
   (cells world-cells world-set-cells!)
   ;; Hash from creature name to position in the world.
   (creatures world-creatures world-set-creatures!))
@@ -211,3 +215,67 @@
 (test "remove more than once doesn't break"
       #f
       (world-get-cell world (make-pos 1 1)))
+
+;;
+;;
+;;
+
+(define (read-txt-to-array str)
+  (let* ((lines (filter (negate string-null?) (string-split str #\linefeed)))
+         (max-length (reduce max 1 (map string-length lines)))
+         (pad (lambda (str) (string-pad-right str max-length #\space)))
+         (padded (map pad lines)))
+    (list->array 2 (reverse (map string->list padded)))))
+
+(test "simple read"
+      array-equal?
+      (list->array 2 '((#\e #\f #\space)
+                       (#\d #\space #\space)
+                       (#\a #\b #\c)))
+      (read-txt-to-array "abc\nd\nef"))
+
+(define (world-read-char char)
+  (match char
+    (#\space #f)
+    (#\# #t)
+    (_ #f)))
+
+;; Returns an array suitable for use as world cells by
+;; interpreting characters in the array SRC.
+(define (world-read-array src)
+  (let ((result (apply make-array #f (reverse (array-dimensions src)))))
+    (array-index-map!
+     result
+     (lambda (i j)
+       (world-read-char
+        (array-ref src j i))))
+    result))
+
+(let ((w (make-world))
+      (cells (world-read-array
+              (read-txt-to-array "###\n# #\n # "))))
+  (world-set-cells! w cells)
+  (test "" '(3 3) (array-dimensions cells))
+  (test "" #f (world-get-cell w (make-pos 0 0)))
+  (test "" #t (world-get-cell w (make-pos 1 0)))
+  (test "" #f (world-get-cell w (make-pos 2 0)))
+
+  (test "" #t (world-get-cell w (make-pos 0 1)))
+  (test "" #f (world-get-cell w (make-pos 1 1)))
+  (test "" #t (world-get-cell w (make-pos 2 1)))
+
+  (test "" #t (world-get-cell w (make-pos 0 2)))
+  (test "" #t (world-get-cell w (make-pos 1 2)))
+  (test "" #t (world-get-cell w (make-pos 2 2))))
+
+(define (make-world-from-file file)
+  (let* ((str (call-with-input-file file
+                (lambda (port)
+                  (get-string-all port))))
+         (cells (world-read-array
+                 (read-txt-to-array
+                  str)))
+         (w (make-world)))
+    (world-set-cells! w cells)
+    (world-set-creatures! w (make-hash-table 20))
+    w))

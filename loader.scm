@@ -18,3 +18,23 @@
                        (#\d #\space #\space)
                        (#\a #\b #\c)))
       (read-txt-to-array "abc\nd\nef"))
+
+(define (world-read-char char)
+  (match char
+    (#\space #f)
+    (#\# #t)
+    (_ #f)))
+
+;; Returns an array suitable for use as world cells by
+;; interpreting characters in the array SRC.
+(define (world-read-array src)
+  (let ((result (apply make-array #f (array-dimensions src))))
+    (array-map! result world-read-char src)))
+
+(test "read & interpret"
+      array-equal?
+      (list->array 2 '((#t #t #t)
+                       (#\d #\space #\space)
+                       (#\a #\b #\c)))
+      (worl-read-array
+       (read-txt-to-array "###\n# #\n###")))
