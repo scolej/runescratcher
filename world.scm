@@ -151,44 +151,47 @@
 
 (define world (blank-world 10))
 
-(test "there is nothing"
-      #f
-      (world-get-cell world (make-pos 0 0)))
+;; there is nothing
+(test #f (world-get-cell world (make-pos 0 0)))
 
 (world-spawn-creature world (make-pos 0 0) 'player 'bob)
 
-(test "there is the player"
-      (list 'player (make-pos 0 0))
-      (list
-       (world-get-cell world (make-pos 0 0))
-       (world-find-creature world 'bob)))
+;; there is the player
+(test
+ (list 'player (make-pos 0 0))
+ (list
+  (world-get-cell world (make-pos 0 0))
+  (world-find-creature world 'bob)))
 
 (world-move-creature world (make-pos 0 0) (make-pos 1 1))
 
-(test "player moves north east"
-      (list #f 'player (make-pos 1 1))
-      (list
-       (world-get-cell world (make-pos 0 0))
-       (world-get-cell world (make-pos 1 1))
-       (world-find-creature world 'bob)))
+;; player moves north east
+(test
+ (list #f 'player (make-pos 1 1))
+ (list
+  (world-get-cell world (make-pos 0 0))
+  (world-get-cell world (make-pos 1 1))
+  (world-find-creature world 'bob)))
 
 (world-move-creature world (make-pos 1 1) 'east)
 
-(test "player moves east"
-      (list #f 'player (make-pos 2 1))
-      (list
-       (world-get-cell world (make-pos 1 1))
-       (world-get-cell world (make-pos 2 1))
-       (world-find-creature world 'bob)))
+;; player moves east
+(test
+ (list #f 'player (make-pos 2 1))
+ (list
+  (world-get-cell world (make-pos 1 1))
+  (world-get-cell world (make-pos 2 1))
+  (world-find-creature world 'bob)))
 
 (world-move-creature world 'bob 'south)
 
-(test "player moves south"
-      (list #f 'player (make-pos 2 0))
-      (list
-       (world-get-cell world (make-pos 2 1))
-       (world-get-cell world (make-pos 2 0))
-       (world-find-creature world 'bob)))
+;; player moves south
+(test
+ (list #f 'player (make-pos 2 0))
+ (list
+  (world-get-cell world (make-pos 2 1))
+  (world-get-cell world (make-pos 2 0))
+  (world-find-creature world 'bob)))
 
 ;; Move off left edge.
 (world-move-creature world 'bob (make-pos 0 0))
@@ -197,53 +200,44 @@
 ;; Move him to a known position.
 (world-move-creature world 'bob (make-pos 2 1))
 
-(test "world wraps"
-      (list 'player 'player)
-      (map (lambda (p) (world-get-cell world p))
-           (list
-            (make-pos 12 11)
-            (make-pos -8 -9))))
+;; world wraps
+(test
+ (list 'player 'player)
+ (map (lambda (p) (world-get-cell world p))
+      (list
+       (make-pos 12 11)
+       (make-pos -8 -9))))
 
 (world-remove-creature world (make-pos 1 1))
 
-(test "player is gone"
-      #f
-      (world-get-cell world (make-pos 1 1)))
+;; player is gone
+(test #f (world-get-cell world (make-pos 1 1)))
 
 (world-remove-creature world (make-pos 1 1))
 
-(test "remove more than once doesn't break"
-      #f
-      (world-get-cell world (make-pos 1 1)))
+;; remove more than once doesn't break
+(test #f (world-get-cell world (make-pos 1 1)))
 
 ;;
 ;;
 ;;
-
-(define (read-txt-to-array str)
-  (let* ((lines (filter (negate string-null?) (string-split str #\linefeed)))
-         (max-length (reduce max 1 (map string-length lines)))
-         (pad (lambda (str) (string-pad-right str max-length #\space)))
-         (padded (map pad lines)))
-    (list->array 2 (reverse (map string->list padded)))))
-
-(test "simple read"
-      array-equal?
-      (list->array 2 '((#\e #\f #\space)
-                       (#\d #\space #\space)
-                       (#\a #\b #\c)))
-      (read-txt-to-array "abc\nd\nef"))
-
-(define (world-read-char char)
-  (match char
-    (#\space #f)
-    (#\# #t)
-    (_ #f)))
 
 ;; Returns an array suitable for use as world cells by
-;; interpreting characters in the array SRC.
-(define (world-read-array src)
-  (let ((result (apply make-array #f (reverse (array-dimensions src)))))
+;; interpreting characters in STR.
+(define (world-read-array str)
+  (define (world-read-char char)
+    (match char
+      (#\space #f)
+      (#\# #t)
+      (_ #f)))
+  (define (read-txt-to-array str)
+    (let* ((lines (filter (negate string-null?) (string-split str #\linefeed)))
+           (max-length (reduce max 1 (map string-length lines)))
+           (pad (lambda (str) (string-pad-right str max-length #\space)))
+           (padded (map pad lines)))
+      (list->array 2 (reverse (map string->list padded)))))
+  (let* ((src (read-txt-to-array str))
+         (result (apply make-array #f (reverse (array-dimensions src)))))
     (array-index-map!
      result
      (lambda (i j)
@@ -252,29 +246,26 @@
     result))
 
 (let ((w (make-world))
-      (cells (world-read-array
-              (read-txt-to-array "###\n# #\n # "))))
+      (cells (world-read-array "###\n# #\n # ")))
   (world-set-cells! w cells)
-  (test "" '(3 3) (array-dimensions cells))
-  (test "" #f (world-get-cell w (make-pos 0 0)))
-  (test "" #t (world-get-cell w (make-pos 1 0)))
-  (test "" #f (world-get-cell w (make-pos 2 0)))
-
-  (test "" #t (world-get-cell w (make-pos 0 1)))
-  (test "" #f (world-get-cell w (make-pos 1 1)))
-  (test "" #t (world-get-cell w (make-pos 2 1)))
-
-  (test "" #t (world-get-cell w (make-pos 0 2)))
-  (test "" #t (world-get-cell w (make-pos 1 2)))
-  (test "" #t (world-get-cell w (make-pos 2 2))))
+  (test '(3 3) (array-dimensions cells))
+  (let ((test (lambda (v x y)
+                (test v (world-get-cell w (make-pos x y))))))
+    (test #f 0 0)
+    (test #t 1 0)
+    (test #f 2 0)
+    (test #t 0 1)
+    (test #f 1 1)
+    (test #t 2 1)
+    (test #t 0 2)
+    (test #t 1 2)
+    (test #t 2 2)))
 
 (define (make-world-from-file file)
   (let* ((str (call-with-input-file file
                 (lambda (port)
                   (get-string-all port))))
-         (cells (world-read-array
-                 (read-txt-to-array
-                  str)))
+         (cells (world-read-array str))
          (w (make-world)))
     (world-set-cells! w cells)
     (world-set-creatures! w (make-hash-table 20))
