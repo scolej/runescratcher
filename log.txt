@@ -40,6 +40,11 @@ Next:
   or maybe just a way to load without running?
   a macro which emits nothing if inhibit-tests is defined?
 
+---------- 2021-03-21 10:00 ----------
+
+list comprehensionsk
+https://srfi.schemers.org/srfi-42/srfi-42.html
+
 ---
 
 ffmpeg -y -video_size 802x602 -framerate 30 -f x11grab -i :0.0 -pix_fmt yuv420p temp.mp4

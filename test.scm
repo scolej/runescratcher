@@ -29,10 +29,11 @@
      ;; (eval-when (compile)
      ;;   body body* ...)
 
-     (unless (and (defined? 'inhibit-tests?) inhibit-tests?)
+     ;; (unless (and (defined? 'inhibit-tests?) inhibit-tests?)
+     ;;   (format #t "running test: ~a\n" name)
+     ;;   body body* ...)
+
+     (begin
        (format #t "running test: ~a\n" name)
        body body* ...)
-
-     ;; (begin
-     ;;   body body* ...)
      )))
