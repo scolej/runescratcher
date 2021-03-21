@@ -67,8 +67,7 @@
     (cond
      ((named-creature? v) (named-creature-creature v))
      ((eq? v #f) 'empty)
-     (#t v)
-     )))
+     (#t v))))
 
 (define (world-cell-empty? world pos)
   (eq? (world-get-cell world pos) 'empty))
@@ -116,7 +115,7 @@
 (define (world-add-wall world pos)
   (let ((p (world-wrap-position world pos)))
     (unless (world-cell-creature? world p)
-      (array-set! (world-cells world) #t (pos-x p) (pos-y p)))))
+      (array-set! (world-cells world) 'wall (pos-x p) (pos-y p)))))
 
 (define (world-add-rune world pos rune)
   (let ((p (world-wrap-position world pos)))
@@ -217,7 +216,7 @@
   (define (world-read-char char)
     (match char
       (#\space #f)
-      (#\# #t)
+      (#\# 'wall)
       (_ #f)))
   (define (read-txt-to-array str)
     (let* ((lines (filter (negate string-null?) (string-split str #\linefeed)))
@@ -242,14 +241,14 @@
    (let ((test (lambda (v x y)
                  (assert-equal v (world-get-cell w (make-pos x y))))))
      (test 'empty 0 0)
-     (test #t 1 0)
+     (test 'wall 1 0)
      (test 'empty 2 0)
-     (test #t 0 1)
+     (test 'wall 0 1)
      (test 'empty 1 1)
-     (test #t 2 1)
-     (test #t 0 2)
-     (test #t 1 2)
-     (test #t 2 2))))
+     (test 'wall 2 1)
+     (test 'wall 0 2)
+     (test 'wall 1 2)
+     (test 'wall 2 2))))
 
 (define (make-world-from-file file)
   (let* ((str (call-with-input-file file

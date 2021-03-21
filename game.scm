@@ -3,12 +3,19 @@
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-9)
   #:use-module (test)
-  #:export (game-input))
+  #:export (make-game-with-world
+            game-input))
 
 (define-record-type <game>
   (make-game) game?
   (input-handler game-input-handler game-set-input-handler!)
   (world game-world game-set-world!))
+
+(define (make-game-with-world world)
+  (let ((g (make-game)))
+    (game-set-world! g world)
+    (game-set-input-handler! g top-level)
+    g))
 
 (define player-name 'player)
 
@@ -24,11 +31,13 @@
 
 
 (define (game-alert msg)
-  (with-output-to-file "out.log"
-    (lambda ()
-      (format #t "---\n~a\n\n" msg))))
+  (let ((port (open-file "out.log" "a")))
+    (format port "---\n~a\n\n" msg)
+    (force-output port)
+    (close-port port)))
 
 (define (game-input-back-to-top-level game)
+  (game-alert "back to top level")
   (game-set-input-handler! game top-level))
 
 ;;;
@@ -56,7 +65,7 @@
   (case input
     ((escape)
      (game-input-back-to-top-level game))
-    ((k)
+    ((a s d f)
      (game-set-input-handler! game (rune-direction-selection input)))
     (else
      (game-alert (format #f "no action for ~a" input)))))
@@ -96,9 +105,9 @@
     (for-each input '(w escape))
     (assert-equal 'empty (world-get-cell w p1))
     ;; cancel 2
-    (for-each input '(w k escape))
+    (for-each input '(w a escape))
     (assert-equal 'empty (world-get-cell w p1))
     ;; write!
-    (for-each input '(w k up))
-    (assert-equal '(rune . k) (world-get-cell w p1))
+    (for-each input '(w a up))
+    (assert-equal '(rune . a) (world-get-cell w p1))
     (assert-equal p0 (world-find-creature w 'player))))
