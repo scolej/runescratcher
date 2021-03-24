@@ -1,6 +1,7 @@
 (define-module (world)
   #:use-module (ice-9 match)
   #:use-module (ice-9 textual-ports)
+  #:use-module (ice-9 control)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-26)
@@ -20,6 +21,11 @@
    world-add-rune
    make-blank-world
    make-world-from-file))
+
+
+
+(define (msg level str . args)
+  (apply format #t str args))
 
 
 
@@ -45,24 +51,36 @@
 
 (define (creature? c) (not (boolean? c)))
 
+;; An entity is an object in the world decorated with a name. A name is just a
+;; unique symbol which provides a way to refer to the entity.
+(define-record-type <entity>
+  (make-entity name value)
+  entity?
+  (name entity-name)
+  (value entity-value))
+
+
+
 (define-record-type <world>
-  (make-world)
-  world?
+  (make-world) world?
   (cells world-cells world-set-cells!)
   ;; Hash from creature name to position in the world.
-  (creatures world-creatures world-set-creatures!))
-
-(define-record-type <named-creature>
-  (make-named-creature name creature)
-  named-creature?
-  (name named-creature-name)
-  (creature named-creature-creature))
+  (creatures world-creatures world-set-creatures!)
+  ;; List of runes
+  (runes world-runes world-set-runes!))
 
 (define (make-blank-world size)
   (let ((w (make-world)))
     (world-set-cells! w (make-array #f size size))
     (world-set-creatures! w (make-hash-table 20))
+    (world-set-runes! w (make-hash-table 20))
     w))
+
+;; Set the value of the cell at POS to VAL.
+;; No checking, no position transform, no nothing.
+;; Use with care.
+(define (world-cell-set! world val pos)
+  (array-set! (world-cells world) val (pos-x pos) (pos-y pos)))
 
 ;; Gets what's in the world at the provided position.
 ;; Returns #t for a wall, #f for nothing, or a
@@ -71,7 +89,7 @@
   (let* ((p (world-wrap-position world pos))
          (v (array-ref (world-cells world) (pos-x p) (pos-y p))))
     (cond
-     ((named-creature? v) (named-creature-creature v))
+     ((entity? v) (entity-value v))
      ((eq? v #f) 'empty)
      (#t v))))
 
@@ -81,9 +99,10 @@
 (define (world-cell-creature? world pos)
   (let* ((p (world-wrap-position world pos))
          (px (pos-x p))
-         (py (pos-y p)))
-    (named-creature?
-     (array-ref (world-cells world) px py))))
+         (py (pos-y p))
+         (v (array-ref (world-cells world) px py)))
+    (and (entity? v)
+         (creature? (entity-value v)))))
 
 ;; Introduce a new creature into world at given
 ;; position, if there's space available. Returns #t if
@@ -99,7 +118,7 @@
           (begin
             (array-set!
              (world-cells world)
-             (make-named-creature name creature)
+             (make-entity name creature)
              x y)
             (hash-set! (world-creatures world) name p)
             #t))))
@@ -146,7 +165,12 @@
                (nc (array-ref (world-cells world) px py)))
           (array-set! (world-cells world) #f px py)
           (array-set! (world-cells world) nc npx npy)
-          (hash-set! (world-creatures world) (named-creature-name nc) new-pos)))))
+          (hash-set! (world-creatures world) (entity-name nc) new-pos)))))
+
+;; todo
+;;
+;; adding/removing entities is all gonna look the same... smoosh them
+;; all together?
 
 (define (world-remove-creature world pos)
   (let* ((p (world-wrap-position world pos))
@@ -156,6 +180,7 @@
     (if (boolean? c) #f
         (begin
           (array-set! (world-cells world) #f x y)
+          ;; fixme remove hash
           c))))
 
 (test-case "moving creatures around the world"
@@ -263,10 +288,45 @@
 
 
 
-(define (world-add-rune world pos rune)
-  (let ((p (world-wrap-position world pos)))
-    (when (world-cell-empty? world p)
-      (array-set! (world-cells world) (cons 'rune rune) (pos-x p) (pos-y p)))))
+(define world-add-rune
+  (case-lambda
+   ((world pos rune name)
+    (let ((p (world-wrap-position world pos)))
+      (when (world-cell-empty? world p)
+        (world-cell-set! world rune pos)
+        (hash-set! (world-runes world) name p))))
+   ((world pos rune)
+    (world-add-rune world pos rune (gensym "anon-rune-")))))
+
+(define (world-remove-rune world name)
+  (call/ec
+   (λ (ret)
+     (let* ((rs (world-runes world))
+            (p (hash-ref rs name)))
+       (unless p
+         (msg 'warn "tried to remove a rune that doesn't exist: ~a" name)
+         (ret #f))
+       (world-cell-set! world #f p)
+       (hash-remove! rs name)
+       #t))))
+
+(define (world-find-rune world name)
+  (hash-ref (world-runes world) name))
+
+(test-case "add and remove a rune"
+  (let* ((w (make-blank-world 3))
+         (p (make-pos 1 1))             ; position for a rune
+         (r 'rune)                      ; rune value
+         (n 'that-rune))                ; rune name
+    (assert-equal #f (world-find-rune w n))
+    ;; add
+    (world-add-rune w p r n)
+    (assert-equal p (world-find-rune w n))
+    (assert-equal r (world-get-cell w p))
+    ;; remove
+    (world-remove-rune w n)
+    (assert-equal #f (world-find-rune w n))
+    (assert-equal 'empty (world-get-cell w p))))
 
 (test-case "flip rune"
   (let* ((size 5)
