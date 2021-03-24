@@ -102,13 +102,10 @@
 
 (define (rune-apply rune pos)
   (let* ((r (rune-pos rune))
-         (rx (pos-x r))
          (ry (pos-y r))
          (px (pos-x pos))
          (py (pos-y pos)))
-    (make-pos
-     (- (* 2 rx) px)
-     (- (* 2 ry) py))))
+    (make-pos px (- (* 2 ry) py))))
 
 ;; Transforms a world position to a valid index into the cells array.
 ;; - wrap around indices outside bounds
@@ -220,14 +217,14 @@
            ((symbol? what) (world-find-creature world what))
            ((pos? what) what)
            (#t (error ":["))))
-         (pos-arr (world->array world pos))
          (new-pos
           (if (symbol? move)
-              (relative-pos pos-arr move)
+              (relative-pos pos move)
               move))
+         (pos-arr (world->array world pos))
          (new-pos-arr (world->array world new-pos)))
-    (when (and (world-cell-creature? world pos-arr)
-               (world-cell-empty? world new-pos-arr))
+    (when (and (world-cell-creature? world pos)
+               (world-cell-empty? world new-pos))
       (let ((nc (world-cell-get world pos-arr)))
         (world-cell-set! world #f pos-arr)
         (world-cell-set! world nc new-pos-arr)
