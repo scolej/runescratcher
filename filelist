@@ -1,9 +1,0 @@
-.gitignore
-loader.scm
-log.txt
-main.scm
-map.txt
-run.sh
-scratch.scm
-test.scm
-world.scm

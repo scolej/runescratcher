@@ -1,8 +1,10 @@
 (define-module (world)
   #:use-module (ice-9 match)
   #:use-module (ice-9 textual-ports)
-  #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-26)
+  #:use-module (srfi srfi-42)
   #:use-module (test)
   #:export
   (make-pos
@@ -18,6 +20,8 @@
    world-add-rune
    make-blank-world
    make-world-from-file))
+
+
 
 ;; A position in the world.
 (define-record-type <position>
@@ -36,6 +40,8 @@
      ((south) (lambda (x y) (make-pos x (- y 1))))
      ((east) (lambda (x y) (make-pos (+ x 1) y)))
      ((west) (lambda (x y) (make-pos (- x 1) y))))))
+
+
 
 (define (creature? c) (not (boolean? c)))
 
@@ -116,11 +122,6 @@
   (let ((p (world-wrap-position world pos)))
     (unless (world-cell-creature? world p)
       (array-set! (world-cells world) 'wall (pos-x p) (pos-y p)))))
-
-(define (world-add-rune world pos rune)
-  (let ((p (world-wrap-position world pos)))
-    (when (world-cell-empty? world p)
-      (array-set! (world-cells world) (cons 'rune rune) (pos-x p) (pos-y p)))))
 
 ;; Update world by moving the creature at pos to the
 ;; new position.
@@ -259,3 +260,34 @@
     (world-set-cells! w cells)
     (world-set-creatures! w (make-hash-table 20))
     w))
+
+
+
+(define (world-add-rune world pos rune)
+  (let ((p (world-wrap-position world pos)))
+    (when (world-cell-empty? world p)
+      (array-set! (world-cells world) (cons 'rune rune) (pos-x p) (pos-y p)))))
+
+(test-case "flip rune"
+  (let* ((size 5)
+         (w (make-blank-world size))
+         (p0 (make-pos 3 2))            ; player pos before
+         (p1 (make-pos 3 4))            ; player pos after
+         (r0 (make-pos 3 3))            ; rune pos
+         ;; a function to flip a position vertically about rune
+         (f (cute pos-map-components <> (λ (x y) (make-pos x (- (* 2 (pos-y r0)) y)))))
+         (walls (list (make-pos 2 2)
+                      (make-pos 2 3)
+                      (make-pos 2 4)
+                      (make-pos 3 4)
+                      (make-pos 4 4)
+                      (make-pos 4 3)
+                      (make-pos 4 2)))
+         (walls-after (map f walls)))
+    (world-spawn-creature w p0 'wizard 'player)
+    (for-each (λ (p) (world-add-wall w p)) walls)
+    (world-add-rune w r0 #\v)
+    (for-each (λ (pos) (assert-equal 'wall (world-get-cell w pos)))
+              walls-after)
+    (assert-equal 'wizard (world-get-cell w p1))
+    (assert-equal p1 (world-find-creature w 'player))))
