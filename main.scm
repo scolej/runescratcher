@@ -44,13 +44,14 @@
                    (attr-on! stdscr (color-pair ci))
                    (addstr stdscr str #:x x #:y (- h y 1))
                    (attr-off! stdscr (color-pair ci))))))
-          (let* ((v (world-get-cell world (make-pos x y)))
-                 (c (match v
-                      ('wall "#")
-                      ('wizard "@")
-                      ('empty " ")
-                      (('rune . r) (cons 'red (format #f "~s" r)))
-                      (_ "?"))))
+          (let* ((ve (world-get-cell world (make-pos x y)))
+                 (v (if (entity? ve) (entity-value ve) ve))
+                 (c (cond
+                      ((eq? v 'wall) "#")
+                      ((eq? v 'wizard) "@")
+                      ((eq? v 'empty) " ")
+                      ((rune? v) (cons 'red "r"))
+                      (else "?"))))
             (cond
              ((string? c) (addstr stdscr c #:x x #:y (- h y 1)))
              ((pair? c) (draw-with-colour (cdr c) (car c)))))))))

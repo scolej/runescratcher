@@ -70,14 +70,14 @@
     (else
      (game-alert (format #f "no action for ~a" input)))))
 
-(define (rune-direction-selection rune)
+(define (rune-direction-selection rune-char)
   (lambda (game input)
     (case input
       ((left right up down)
        (let* ((w (game-world game))
               (d (arrow-to-cardinal-dir input))
               (p (relative-pos (world-find-creature w player-name) d)))
-         (world-add-rune w p rune)
+         (world-add-rune w p (make-rune p))
          (game-input-back-to-top-level game)))
       (else
        (game-alert (format #f "no action for ~a" input))))))
@@ -98,16 +98,17 @@
          (w (game-world g))
          (input (cut game-input g <>))
          (p0 (make-pos 0 0))
-         (p1 (make-pos 0 1)))
+         (p1 (make-pos 0 2))
+         (r0 (make-pos 0 1)))
     (assert-equal p0 (world-find-creature w 'player))
-    (assert-equal 'empty (world-get-cell w p1))
+    (assert-equal 'empty (world-get-cell w r0))
     ;; cancel 1
     (for-each input '(w escape))
-    (assert-equal 'empty (world-get-cell w p1))
+    (assert-equal 'empty (world-get-cell w r0))
     ;; cancel 2
     (for-each input '(w a escape))
-    (assert-equal 'empty (world-get-cell w p1))
+    (assert-equal 'empty (world-get-cell w r0))
     ;; write!
     (for-each input '(w a up))
-    (assert-equal '(rune . a) (world-get-cell w p1))
-    (assert-equal p0 (world-find-creature w 'player))))
+    (assert-equal #t (rune? (world-get-entity-value w r0)))
+    (assert-equal p1 (world-find-creature w 'player))))

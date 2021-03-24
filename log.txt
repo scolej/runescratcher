@@ -42,8 +42,16 @@ Next:
 
 ---------- 2021-03-21 10:00 ----------
 
-list comprehensionsk
+list comprehensions
 https://srfi.schemers.org/srfi-42/srfi-42.html
+
+---------- 2021-03-24 16:09 ----------
+
+a macro to introduce a value, and then return it!
+
+    (with (w (make-world))
+       ... configure w ...
+       )
 
 ---
 
