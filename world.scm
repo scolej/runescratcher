@@ -7,6 +7,7 @@
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-42)
   #:use-module (test)
+  #:use-module (system vm trace)
   #:export
   (make-pos
    pos-x
@@ -21,6 +22,8 @@
    world-add-rune
    make-blank-world
    make-world-from-file))
+
+;; todo - a sensible prelude
 
 
 
@@ -82,25 +85,34 @@
 (define (world-cell-set! world val pos)
   (array-set! (world-cells world) val (pos-x pos) (pos-y pos)))
 
+;; Get whatever is in the world at given position
+;; No checking, no position transform, no nothing.
+;; Use with care.
+(define (world-cell-get world pos)
+  (let ((w (world-cells world))
+        (x (pos-x pos))
+        (y (pos-y pos)))
+    (let ((v (array-ref w x y)))
+      (cond
+       ((eq? v #f) 'empty)
+       (#t v)))))
+
 ;; Gets what's in the world at the provided position.
-;; Returns #t for a wall, #f for nothing, or a
-;; creature.
 (define (world-get-cell world pos)
-  (let* ((p (world-wrap-position world pos))
-         (v (array-ref (world-cells world) (pos-x p) (pos-y p))))
-    (cond
-     ((entity? v) (entity-value v))
-     ((eq? v #f) 'empty)
-     (#t v))))
+  (world-cell-get world (world-wrap-position world pos)))
+
+(define (world-get-entity-value world pos)
+  (let ((e (world-get-cell world pos)))
+    (if (entity? e) (entity-value e) #f)))
+
+
 
 (define (world-cell-empty? world pos)
   (eq? (world-get-cell world pos) 'empty))
 
 (define (world-cell-creature? world pos)
   (let* ((p (world-wrap-position world pos))
-         (px (pos-x p))
-         (py (pos-y p))
-         (v (array-ref (world-cells world) px py)))
+         (v (world-cell-get world p)))
     (and (entity? v)
          (creature? (entity-value v)))))
 
@@ -111,15 +123,10 @@
   (case-lambda
    ;; Allow naming the creature for later look-up.
    ((world pos creature name)
-    (let* ((p (world-wrap-position world pos))
-           (x (pos-x p))
-           (y (pos-y p)))
+    (let* ((p (world-wrap-position world pos)))
       (if (not (world-cell-empty? world p)) #f
           (begin
-            (array-set!
-             (world-cells world)
-             (make-entity name creature)
-             x y)
+            (world-cell-set! world (make-entity name creature) p)
             (hash-set! (world-creatures world) name p)
             #t))))
    ;; Anonymous creature.
@@ -140,7 +147,7 @@
 (define (world-add-wall world pos)
   (let ((p (world-wrap-position world pos)))
     (unless (world-cell-creature? world p)
-      (array-set! (world-cells world) 'wall (pos-x p) (pos-y p)))))
+      (world-cell-set! world 'wall p))))
 
 ;; Update world by moving the creature at pos to the
 ;; new position.
@@ -157,14 +164,10 @@
     (if (and (world-cell-creature? world pos)
              (world-cell-empty? world new-pos))
         (let* ((pw (world-wrap-position world pos))
-               (px (pos-x pw))
-               (py (pos-y pw))
                (npw (world-wrap-position world new-pos))
-               (npx (pos-x npw))
-               (npy (pos-y npw))
-               (nc (array-ref (world-cells world) px py)))
-          (array-set! (world-cells world) #f px py)
-          (array-set! (world-cells world) nc npx npy)
+               (nc (world-cell-get world pw)))
+          (world-cell-set! world #f pw)
+          (world-cell-set! world nc npw)
           (hash-set! (world-creatures world) (entity-name nc) new-pos)))))
 
 ;; todo
@@ -174,14 +177,20 @@
 
 (define (world-remove-creature world pos)
   (let* ((p (world-wrap-position world pos))
-         (x (pos-x p))
-         (y (pos-y p))
-         (c (array-ref (world-cells world) x y)))
+         (c (world-cell-get world p)))
     (if (boolean? c) #f
         (begin
-          (array-set! (world-cells world) #f x y)
+          (world-cell-set! world #f p)
           ;; fixme remove hash
           c))))
+
+(define-syntax trc
+  (syntax-rules ()
+    ((trc exp exp* ...)
+     (call-with-trace
+      (λ ()
+        exp exp* ...)
+      #:width 300))))
 
 (test-case "moving creatures around the world"
   (let ((world (make-blank-world 10)))
@@ -189,44 +198,31 @@
     (assert-equal 'empty (world-get-cell world (make-pos 0 0)))
     ;; there is the player
     (world-spawn-creature world (make-pos 0 0) 'player 'bob)
-    (assert-equal 'player (world-get-cell world (make-pos 0 0)))
+    (assert-equal 'player (world-get-entity-value world (make-pos 0 0)))
     (assert-equal (make-pos 0 0) (world-find-creature world 'bob))
     ;; player moves north east
     (world-move-creature world (make-pos 0 0) (make-pos 1 1))
-    (assert-equal
-     (list 'empty 'player (make-pos 1 1))
-     (list
-      (world-get-cell world (make-pos 0 0))
-      (world-get-cell world (make-pos 1 1))
-      (world-find-creature world 'bob)))
+    (assert-equal 'empty (world-get-cell world (make-pos 0 0)))
+    (assert-equal 'player (world-get-entity-value world (make-pos 1 1)))
+    (assert-equal (make-pos 1 1) (world-find-creature world 'bob))
     ;; player moves east
     (world-move-creature world (make-pos 1 1) 'east)
-    (assert-equal
-     (list 'empty 'player (make-pos 2 1))
-     (list
-      (world-get-cell world (make-pos 1 1))
-      (world-get-cell world (make-pos 2 1))
-      (world-find-creature world 'bob)))
+    (assert-equal 'empty (world-get-cell world (make-pos 1 1)))
+    (assert-equal 'player (world-get-entity-value world (make-pos 2 1)))
+    (assert-equal (make-pos 2 1) (world-find-creature world 'bob))
     ;; player moves south
     (world-move-creature world 'bob 'south)
-    (assert-equal
-     (list 'empty 'player (make-pos 2 0))
-     (list
-      (world-get-cell world (make-pos 2 1))
-      (world-get-cell world (make-pos 2 0))
-      (world-find-creature world 'bob)))
+    (assert-equal 'empty (world-get-cell world (make-pos 2 1)))
+    (assert-equal 'player (world-get-entity-value world (make-pos 2 0)))
+    (assert-equal (make-pos 2 0) (world-find-creature world 'bob))
     ;; Move off left edge.
     (world-move-creature world 'bob (make-pos 0 0))
     (world-move-creature world 'bob 'west)
     ;; Move him to a known position.
     (world-move-creature world 'bob (make-pos 2 1))
     ;; world wraps
-    (assert-equal
-     (list 'player 'player)
-     (map (lambda (p) (world-get-cell world p))
-          (list
-           (make-pos 12 11)
-           (make-pos -8 -9))))
+    (assert-equal 'player (world-get-entity-value world (make-pos 12 11)))
+    (assert-equal 'player (world-get-entity-value world (make-pos -8 -9)))
     ;; player is gone
     (world-remove-creature world (make-pos 1 1))
     (assert-equal 'empty (world-get-cell world (make-pos 1 1)))
