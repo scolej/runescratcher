@@ -1,7 +1,18 @@
 (define-module (test)
+  #:use-module (system vm trace)
+  #:re-export
+  (call-with-trace)
   #:export
   (test-case
-   assert-equal))
+   assert-equal
+   trc))
+
+;; todo
+;; assert equal doesn't work all that well,
+;; what if it's in a method you call multiple times?
+;; 1 - should throw
+;; 2 - test-case can catch & report with backtrace
+;; this means the test case doesn't progress beyond first error, good!
 
 (define-syntax assert-equal
   (syntax-rules ()
@@ -37,3 +48,11 @@
        (format #t "running test: ~a\n" name)
        body body* ...)
      )))
+
+(define-syntax trc
+  (syntax-rules ()
+    ((trc exp exp* ...)
+     (call-with-trace
+      (λ ()
+        exp exp* ...)
+      #:width 300))))

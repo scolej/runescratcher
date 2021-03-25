@@ -8,7 +8,6 @@
   #:use-module (srfi srfi-42)
   #:use-module (srfi srfi-69)
   #:use-module (test)
-  #:use-module (system vm trace)
   #:export
   (make-pos
    pos-x
@@ -87,6 +86,8 @@
     (world-set-runes! w (make-hash-table))
     w))
 
+
+
 (define-record-type <rune>
   (make-rune pos) rune?
   (pos rune-pos rune-set-pos!))
@@ -97,8 +98,8 @@
          (ry (pos-y r))
          (px (pos-x pos))
          (py (pos-y pos)))
-    (and (< (abs (- px rx)) 3)
-         (< (abs (- py ry)) 3))))
+    (and (< (abs (- px rx)) 2)
+         (< (abs (- py ry)) 2))))
 
 (define (rune-apply rune pos)
   (let* ((r (rune-pos rune))
@@ -205,10 +206,6 @@
     (unless (world-cell-creature? world p)
       (world-cell-set! world 'wall p))))
 
-;; CONTINUE
-;; write tests for moving through a runes area of effect
-;; and out the other side.
-
 ;; Update world by moving the creature at pos to the
 ;; new position.
 (define (world-move-creature world what move)
@@ -244,14 +241,6 @@
           (world-cell-set! world #f p)
           ;; fixme remove hash
           c))))
-
-(define-syntax trc
-  (syntax-rules ()
-    ((trc exp exp* ...)
-     (call-with-trace
-      (λ ()
-        exp exp* ...)
-      #:width 300))))
 
 (test-case "moving creatures around the world"
   (let ((world (make-blank-world 10)))
@@ -372,6 +361,11 @@
 (define (world-find-rune world name)
   (hash-table-ref/default (world-runes world) name #f))
 
+;; todo, ideas
+;;
+;; util to assert pos in cells & pos reported for entity are consistent & equal
+;; to a given value
+
 (test-case "add and remove a rune"
   (let* ((w (make-blank-world 3))
          (p (make-pos 1 1))             ; position for a rune
@@ -390,18 +384,19 @@
 (test-case "flip rune"
   (let* ((size 5)
          (w (make-blank-world size))
-         (p0 (make-pos 3 2))            ; player pos before
-         (p1 (make-pos 3 4))            ; player pos after
-         (r0 (make-pos 3 3))            ; rune pos
+         (p0 (make-pos 2 1))            ; player pos before
+         (r0 (make-pos 2 2))            ; rune pos
+         (p1 (make-pos 2 3))            ; player pos after
          ;; a function to flip a position vertically about rune
-         (f (cute pos-map-components <> (λ (x y) (make-pos x (- (* 2 (pos-y r0)) y)))))
-         (walls (list (make-pos 2 2)
+         (f (cute pos-map-components <>
+                  (λ (x y) (make-pos x (- (* 2 (pos-y r0)) y)))))
+         (walls (list (make-pos 1 1)
+                      (make-pos 1 2)
+                      (make-pos 1 3)
                       (make-pos 2 3)
-                      (make-pos 2 4)
-                      (make-pos 3 4)
-                      (make-pos 4 4)
-                      (make-pos 4 3)
-                      (make-pos 4 2)))
+                      (make-pos 3 3)
+                      (make-pos 3 2)
+                      (make-pos 3 1)))
          (walls-after (map f walls)))
     (world-spawn-creature w p0 'wizard 'player)
     (for-each
