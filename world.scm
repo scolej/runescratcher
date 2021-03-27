@@ -366,6 +366,16 @@
 ;; util to assert pos in cells & pos reported for entity are consistent & equal
 ;; to a given value
 
+;; Assert that CREATURE with NAME is at POS in WORLD.
+(define (assert-creature-position world creature name pos)
+  (assert-equal creature (world-get-entity-value world pos))
+  (assert-equal pos (world-find-creature world name)))
+
+;; Assert that RUNE with NAME is at POS in WORLD.
+(define (assert-rune-position world rune name pos)
+  (assert-equal rune (world-get-entity-value world pos))
+  (assert-equal pos (world-find-rune world name)))
+
 (test-case "add and remove a rune"
   (let* ((w (make-blank-world 3))
          (p (make-pos 1 1))             ; position for a rune
@@ -374,8 +384,7 @@
     (assert-equal #f (world-find-rune w n))
     ;; add
     (world-add-rune w p r n)
-    (assert-equal p (world-find-rune w n))
-    (assert-equal r (world-get-entity-value w p))
+    (assert-rune-position w r n p)
     ;; remove
     (world-remove-rune w n)
     (assert-equal #f (world-find-rune w n))
@@ -408,5 +417,4 @@
      (λ (pos)
        (assert-equal 'wall (world-get-cell w pos)))
      walls-after)
-    (assert-equal 'wizard (world-get-entity-value w p1))
-    (assert-equal p1 (world-find-creature w 'player))))
+    (assert-creature-position w 'wizard 'player p1)))
