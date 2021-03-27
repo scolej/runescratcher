@@ -1,18 +1,17 @@
 (define-module (test)
   #:use-module (system vm trace)
+  #:use-module (ice-9 exceptions)
   #:re-export
-  (call-with-trace)
+  (call-with-trace) ; fixme did this actually work?
   #:export
   (test-case
-   assert-equal
+      assert-equal
+    call-with-bt-exn
    trc))
 
-;; todo
-;; assert equal doesn't work all that well,
-;; what if it's in a method you call multiple times?
-;; 1 - should throw
-;; 2 - test-case can catch & report with backtrace
-;; this means the test case doesn't progress beyond first error, good!
+(define-exception-type <test-exception> &assertion-failure
+  (make-test-exception msg) test-exception?
+  (msg test-exception-message))
 
 (define-syntax assert-equal
   (syntax-rules ()
@@ -23,31 +22,43 @@
          (let ((f (assq-ref loc 'filename))
                (l (assq-ref loc 'line))
                (c (assq-ref loc 'column)))
-           (format #t (string-join
-                       '("--- fail! ---"
-                         "~a:~a:~a"
-                         "expected: ~a"
-                         "  actual: ~a")
-                       "\n" 'suffix)
-                   f (1+ l) c
-                   exp act)))))))
+           (let ((msg (format #f (string-join
+                                  '("--- fail! ---"
+                                    "~a:~a:~a"
+                                    "expected: ~a"
+                                    "  actual: ~a")
+                                  "\n" 'suffix)
+                              f (1+ l) c
+                              exp act)))
+             (raise-exception
+              (make-test-exception msg)))))))))
+
+(define (call-with-bt-exn thunk)
+  (call-with-prompt 'err
+    (λ ()
+      (with-exception-handler
+       (λ (exn)
+         (if (test-exception? exn)
+             (abort-to-prompt 'err (make-stack #t) exn)
+             (begin
+               (newline)                ; fixme entangled formatting
+               (raise-exception exn))))
+       (λ () (thunk) #t)))
+    (λ (c bt exn)
+      (display-backtrace bt (current-output-port))
+      (display (test-exception-message exn))
+      #f)))
 
 (define-syntax test-case
   (syntax-rules ()
-    ((_ name body body* ...)
-
-     ;; doesn't seem to work
-     ;; (eval-when (compile)
-     ;;   body body* ...)
-
-     ;; (unless (and (defined? 'inhibit-tests?) inhibit-tests?)
-     ;;   (format #t "running test: ~a\n" name)
-     ;;   body body* ...)
-
-     (begin
-       (format #t "running test: ~a\n" name)
-       body body* ...)
-     )))
+    ((_ name descr body body* ...)
+     (define (name)
+       (let ((loc (current-source-location)))
+         (let ((f (assq-ref loc 'filename))
+               (l (assq-ref loc 'line)))
+           (format #t "test: ~a (~a:~a)..." descr f (1+ l))))
+       (when (call-with-bt-exn (λ () body body* ...))
+         (format #t " passed\n"))))))
 
 (define-syntax trc
   (syntax-rules ()

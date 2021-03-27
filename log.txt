@@ -53,6 +53,101 @@ a macro to introduce a value, and then return it!
        ... configure w ...
        )
 
+---------- 2021-03-27 23:46 ----------
+
+my test macro is not going so well.
+
+with it i get the following trace:
+
+    Backtrace:
+    In ice-9/boot-9.scm:
+      1736:10  6 (with-exception-handler _ _ #:unwind? _ #:unwind-for-type _)
+    In unknown file:
+               5 (apply-smob/0 #<thunk 7ff061da6940>)
+    In ice-9/boot-9.scm:
+        718:2  4 (call-with-prompt _ _ #<procedure default-prompt-handler (k p…>)
+    In ice-9/eval.scm:
+        619:8  3 (_ #(#(#<directory (guile-user) 7ff0619a2f00>)))
+    In ice-9/command-line.scm:
+       185:18  2 (_ #<input: string 7ff061d347e0>)
+    In unknown file:
+               1 (eval ((@ (world-test) run-all)) #<directory (guile-user) 7ff…>)
+    In world-test.scm:
+        101:0  0 (load-world)
+
+    world-test.scm:101:0: In procedure load-world:
+    In procedure struct-vtable: Wrong type argument in position 1 (expecting struct): #<hash-table 7ff05e0c6620 0/31>
+
+without it, using a regular define, i get the much more informative:
+
+    Backtrace:
+    In ice-9/boot-9.scm:
+      1736:10 11 (with-exception-handler _ _ #:unwind? _ #:unwind-for-type _)
+    In unknown file:
+              10 (apply-smob/0 #<thunk 7fd6e6786940>)
+    In ice-9/boot-9.scm:
+        718:2  9 (call-with-prompt _ _ #<procedure default-prompt-handler (k p…>)
+    In ice-9/eval.scm:
+        619:8  8 (_ #(#(#<directory (guile-user) 7fd6e6382f00>)))
+    In ice-9/command-line.scm:
+       185:18  7 (_ #<input: string 7fd6e67147e0>)
+    In unknown file:
+               6 (eval ((@ (world-test) run-all)) #<directory (guile-user) 7fd…>)
+    In world-test.scm:
+        110:6  5 (load-world)
+       109:34  4 (test empty 0 0)
+    In world.scm:
+       172:24  3 (world-get-cell #<<world> cells: #2((#f wall wall) (wall #f …> …)
+    In unknown file:
+               2 (_ #<procedure 7fd6e3ca62e0 at ice-9/boot-9.scm:792:28 ()> # #)
+    In world.scm:
+       131:20  1 (rune-transforms #<<position> x: 0 y: 0>)
+    In srfi/srfi-69.scm:
+       312:20  0 (hash-table-values #<hash-table 7fd6e3ca9e40 0/31>)
+
+    srfi/srfi-69.scm:312:20: In procedure hash-table-values:
+    In procedure struct-vtable: Wrong type argument in position 1 (expecting struct): #<hash-table 7fd6e3ca9e40 0/31>
+
+it's like as soon as you hit custom syntax, the stack trace dies completely!
+
+even without the macro:
+
+    Backtrace:
+    In ice-9/boot-9.scm:
+      1736:10  5 (with-exception-handler _ _ #:unwind? _ #:unwind-for-type _)
+    In unknown file:
+               4 (apply-smob/0 #<thunk 7f51c9c8f940>)
+    In ice-9/boot-9.scm:
+        718:2  3 (call-with-prompt _ _ #<procedure default-prompt-handler (k p…>)
+    In ice-9/eval.scm:
+        619:8  2 (_ #(#(#<directory (guile-user) 7f51c988bf00>)))
+    In ice-9/command-line.scm:
+       185:18  1 (_ #<input: string 7f51c7f76b60>)
+    In unknown file:
+               0 (eval ((@ (world-test) run-all)) #<directory (guile-user) 7f5…>)
+
+    ERROR: In procedure eval:
+    In procedure struct-vtable: Wrong type argument in position 1 (expecting struct): #<hash-table 7f51c744e660 0/31>
+
+it's still an impoverished backtrace, so maybe it's more to do with prompts.
+
+haha! got it. i got an impoverished trace because i passed the exception
+out to an escape continuation, then re-raised from there! in this case, it
+was raised completely out of context, so the stack is a total mismatch!
+
+--
+
+continue:
+
+- fix up imports, it's a mess, need to re-export everything a module needs
+- disentangle formatting in test case macros
+
+
+
+
+
+
+
 ---
 
 ffmpeg -y -video_size 802x602 -framerate 30 -f x11grab -i :0.0 -pix_fmt yuv420p temp.mp4
