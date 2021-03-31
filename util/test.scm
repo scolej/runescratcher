@@ -1,12 +1,12 @@
-(define-module (test)
+(define-module (util test)
   #:use-module (system vm trace)
   #:use-module (ice-9 exceptions)
   #:re-export
-  (call-with-trace) ; fixme did this actually work?
+  (call-with-trace)                     ; fixme did this actually work?
   #:export
-  (test-case
-      assert-equal
-    call-with-bt-exn
+  (assert-equal
+   test-case
+   call-with-bt-exn
    trc))
 
 (define-exception-type &test-exception &assertion-failure

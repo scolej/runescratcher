@@ -1,8 +1,8 @@
-(define-module (game-test)
-  #:use-module (test)
+(define-module (test game)
+  #:use-module (util test)
+  #:use-module (runes world)
+  #:use-module (runes game)
   #:use-module (srfi srfi-26)
-  #:use-module (world)
-  #:use-module (game)
   #:export (run-all))
 
 (define (make-test-game)

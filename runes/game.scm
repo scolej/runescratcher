@@ -1,7 +1,7 @@
-(define-module (game)
-  #:use-module (test)
+(define-module (runes game)
+  #:use-module (util test)
+  #:use-module (runes world)
   #:use-module (srfi srfi-9)
-  #:use-module (world)
   #:export
   (make-game
    make-game-with-world

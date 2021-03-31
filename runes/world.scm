@@ -1,4 +1,5 @@
-(define-module (world)
+(define-module (runes world)
+  #:use-module (runes pos)
   #:use-module (ice-9 match)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 control)
@@ -8,13 +9,7 @@
   #:use-module (srfi srfi-42)
   #:use-module (srfi srfi-69)
   #:export
-  (make-pos
-   pos-x
-   pos-y
-   pos-map-components
-   relative-pos
-   ;; fixme expose this?
-   entity?
+  (entity?                              ; fixme expose this?
    entity-name
    entity-value
    make-world
@@ -23,7 +18,7 @@
    world-cell-get
    world-set-cells!
    world-set-runes!
-   world-get-entity-value ; fixme :(
+   world-get-entity-value               ; fixme :(
    world-move-creature
    world-spawn-creature
    world-remove-creature
@@ -44,26 +39,6 @@
 
 (define (msg level str . args)
   (apply format #t str args))
-
-
-
-;; A position in the world.
-(define-record-type <position>
-  (make-pos x y) pos?
-  (x pos-x)
-  (y pos-y))
-
-(define (pos-map-components p f)
-  (f (pos-x p) (pos-y p)))
-
-(define (relative-pos p dir)
-  (pos-map-components
-   p
-   (case dir
-     ((north) (lambda (x y) (make-pos x (+ y 1))))
-     ((south) (lambda (x y) (make-pos x (- y 1))))
-     ((east) (lambda (x y) (make-pos (+ x 1) y)))
-     ((west) (lambda (x y) (make-pos (- x 1) y))))))
 
 
 
