@@ -1,4 +1,4 @@
-set -exu
+set -eu
 
 ulimit -m 100
 ulimit -t 5
@@ -6,7 +6,7 @@ ulimit -t 5
 export GUILE_LOAD_PATH=$(pwd)
 
 # Compile everything without optimization for better backtraces?
-find test runes util -name \*scm -exec guild compile -O0 '{}' \;
+# find test runes util -name \*scm -exec guild compile -O0 '{}' \;
 
 export GUILE_AUTO_COMPILE=1
 
