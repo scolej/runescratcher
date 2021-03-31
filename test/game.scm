@@ -1,18 +1,37 @@
 (define-module (test game)
+  #:use-module (srfi srfi-26)
   #:use-module (util test)
+  #:use-module (runes pos)
   #:use-module (runes world)
   #:use-module (runes game)
-  #:use-module (srfi srfi-26)
-  #:export (run-all))
+  #:export
+  (all))
 
+;; A test game: an empty world with a wizard player at the south-west corner.
 (define (make-test-game)
   (let ((g (make-game))
-        (w (make-blank-world 5))
+        (w (make-world-empty 5))
         (p0 (make-pos 0 0)))
-    (world-spawn-creature w p0 'wizard 'player)
+    (world-spawn w p0 'wizard 'player)
     (game-set-world! g w)
     (game-set-input-handler! g top-level)
     g))
+
+(define (move-assert game input new-position)
+  (game-input game input)
+  (let ((w (game-world game)))
+    (assert-equal 'wizard (world-cell-get w new-position))
+    (assert-equal new-position (world-find w 'player))))
+
+(test-case simple-movement
+  "player can move around, but not into walls"
+  (let* ((g (make-test-game))
+         (move-assert (cut move-assert g <> <>)))
+    (move-assert 'up (make-pos 0 1))
+    (move-assert 'right (make-pos 1 1))
+    (move-assert 'down (make-pos 1 0))
+    (move-assert 'left (make-pos 0 0))
+    (move-assert 'left (make-pos 0 0))))
 
 (test-case write-runes
   "writing runes"
@@ -67,8 +86,8 @@
     (move-assert 'up (pos 2 3))
     (move-assert 'up (pos 2 4))))
 
-(define (run-all)
+(define (all)
+  (simple-movement)
   ;; fixme (write-runes)
   ;; (rune-move-aoe)
-  #t
   )

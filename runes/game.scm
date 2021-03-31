@@ -61,7 +61,7 @@
     ((left right up down)
      (let ((w (game-world game))
            (d (arrow-to-cardinal-dir input)))
-       (world-move-creature w player-name d)))
+       (world-move w player-name d)))
     ((w)
      (game-set-input-handler! game rune-selection))
     (else

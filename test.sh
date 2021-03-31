@@ -3,13 +3,12 @@ set -exu
 ulimit -m 100
 ulimit -t 5
 
-# for f in *.scm; do
-#     guild compile -O0 "$f"
-# done
+export GUILE_LOAD_PATH=$(pwd)
 
-export GUILE_LOAD_PATH=$(pwd) GUILE_AUTO_COMPILE=fresh
+# Compile everything without optimization for better backtraces?
+find test runes util -name \*scm -exec guild compile -O0 '{}' \;
 
-# guild compile -O0 test/world.scm
+export GUILE_AUTO_COMPILE=1
 
 guile='guile --debug'
-$guile --debug test/all.scm
+$guile --debug test/run.scm

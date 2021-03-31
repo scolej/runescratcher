@@ -127,25 +127,22 @@
 ;;
 ;; The move only succeeds if the new position is empty.
 (define (world-move world what move)
-  (let* ((pos
-          (cond
-           ((symbol? what)
-            (world-find world what))
-           ((pos? what) what)
-           (#t (error))))
-         (new-pos
-          (cond
-           ((symbol? move) (relative-pos pos move))
-           ((pos? move) move)
-           (#t (error)))))
-    (when (world-cell-empty? world new-pos)
+  (let* ((pos (cond ((symbol? what) (world-find world what))
+                    ((pos? what) what)
+                    (#t (error))))
+         (new-pos (cond ((symbol? move) (relative-pos pos move))
+                        ((pos? move) move)
+                        (#t (error)))))
+    (if (world-cell-empty? world new-pos)
       (let ((thing (cell-get world pos)))
         (cell-set! world #f pos)
         (cell-set! world thing new-pos)
         (when (entity? thing)
           (entity-set-pos!
            (hash-table-ref (world-entities world) (entity-name thing))
-           new-pos))))))
+           new-pos))
+        #t)
+      #f)))
 
 ;; Remove whatever is at position, leaving an empty cell.
 (define (world-remove world pos)

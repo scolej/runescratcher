@@ -2,13 +2,14 @@
  (ice-9 match)
  (srfi srfi-9)
  (ncurses curses)
- (world)
- (game))
+ (runes pos)
+ (runes world)
+ (runes game))
 
-(define world (make-world-from-file "map.txt"))
-;; (define world (blank-world 300))
-(world-spawn-creature world (make-pos 0 0) 'wizard 'player)
-(world-spawn-creature world (make-pos 3 3) 'monster)
+(define world (call-with-input-file "map.txt" make-world-from-port))
+
+(world-spawn world (make-pos 0 0) 'wizard 'player)
+(world-spawn world (make-pos 3 3) 'monster)
 (world-add-wall world (make-pos 5 5))
 (world-add-wall world (make-pos 5 4))
 (world-add-wall world (make-pos 5 3))
@@ -44,8 +45,7 @@
                    (attr-on! stdscr (color-pair ci))
                    (addstr stdscr str #:x x #:y (- h y 1))
                    (attr-off! stdscr (color-pair ci))))))
-          (let* ((ve (world-cell-get world (make-pos x y)))
-                 (v (if (entity? ve) (entity-value ve) ve))
+          (let* ((v (world-cell-get world (make-pos x y)))
                  (c (cond
                       ((eq? v 'wall) "#")
                       ((eq? v 'wizard) "@")
@@ -60,7 +60,6 @@
 (define (go)
   (draw)
   (let ((c (getch stdscr)))
-    ;; TODO-NEXT character movement, how to track player in world?
     (cond
      ((eqv? c KEY_LEFT) (game-input game 'left))
      ((eqv? c KEY_RIGHT) (game-input game 'right))
