@@ -1,114 +1,72 @@
+;;; Grid world
+;;;
+;;; Models a world on a grid. Each cell is one of:
+;;;
+;;; - an empty cell
+;;; - a wall
+;;; - an entity with a name
+;;;
+;;; There may be only one entity per cell.
+;;;
+;;; An entity may not coincide with a wall.
+;;;
+;;; Anything out of bounds is a wall.
+
 (define-module (runes world)
-  #:use-module (runes pos)
   #:use-module (ice-9 match)
   #:use-module (ice-9 textual-ports)
-  #:use-module (ice-9 control)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
-  #:use-module (srfi srfi-26)
-  #:use-module (srfi srfi-42)
   #:use-module (srfi srfi-69)
+  #:use-module (util log)
+  #:use-module (runes pos)
   #:export
-  (entity?                              ; fixme expose this?
-   entity-name
-   entity-value
-   make-world
-   make-blank-world
-   world-read-array
+  (make-world-empty
+   make-world-from-port
    world-cell-get
-   world-set-cells!
-   world-set-runes!
-   world-get-entity-value               ; fixme :(
-   world-move-creature
-   world-spawn-creature
-   world-remove-creature
-   world-remove-rune
-   world-find-creature
-   world-find-rune
-   world-add-wall
-   world-add-rune
-   make-blank-world
-   make-world-from-file
-   make-rune
-   rune?
-   run-tests))
+   world-cell-empty
+   world-move
+   world-find
+   world-remove
+   world-spawn
+   world-add-wall))
 
-;; todo - a sensible prelude
-
-
-
-(define (msg level str . args)
-  (apply format #t str args))
-
-
-
-(define (creature? c) (not (boolean? c)))
-
-;; An entity is an object in the world decorated with a name. A name is just a
-;; unique symbol which provides a way to refer to the entity.
+;; An entity is an object in the world decorated with a name. A name
+;; is just a unique symbol which provides a way to refer to the
+;; entity.
 (define-record-type <entity>
-  (make-entity name value)
+  (make-entity name position value)
   entity?
+  ;; Entity name. Any symbol.
   (name entity-name)
+  ;; Entity position (no transforms), or #f.
+  (position entity-pos entity-set-pos!)
+  ;; Entity value. Anything at all.
   (value entity-value))
 
 
 
 (define-record-type <world>
-  (make-world) world?
+  (make-world-raw)
+  world?
+  ;; Grid of cells.
   (cells world-cells world-set-cells!)
-  ;; Hash from creature name to position in the world.
-  (creatures world-creatures world-set-creatures!)
-  ;; List of runes
-  (runes world-runes world-set-runes!))
+  ;; Hash of entities. Key is entity name.
+  (entities world-entities world-set-entities!))
 
-(define (make-blank-world size)
-  (let ((w (make-world)))
+;; Makes a new world, a square of the given size, with nothing in it.
+(define (make-world-empty size)
+  (let ((w (make-world-raw)))
     (world-set-cells! w (make-array #f size size))
-    (world-set-creatures! w (make-hash-table))
-    (world-set-runes! w (make-hash-table))
+    (world-set-entities! w (make-hash-table))
     w))
 
-
-
-(define-record-type <rune>
-  (make-rune pos) rune?
-  (pos rune-pos rune-set-pos!))
-
-(define (rune-apply rune pos)
-  (let* ((r (rune-pos rune))
-         (rx (pos-x r))
-         (ry (pos-y r))
-         (px (pos-x pos))
-         (py (pos-y pos))
-         (range 2)
-         (in-range (and (< (abs (- px rx)) range)
-                        (< (abs (- py ry)) range))))
-    (if (not in-range)
-        pos
-        (make-pos px (- (* 2 ry) py)))))
-
-;; Transform a position with all the impacting rune effects.
-(define (rune-transform world pos)
-  (let* ((rune-ps (hash-table-values (world-runes world)))
-         (all (map (compose entity-value
-                            (cut world-cell-get-prim world <>))
-                   rune-ps)))
-    (fold rune-apply pos rel)))
-
 ;; Set the value of the cell at POS to VAL.
-(define (world-cell-set! world val pos)
+(define (cell-set! world val pos)
   (array-set! (world-cells world) val (pos-x pos) (pos-y pos)))
 
-;; fixme
-;;
-;; filtering runes by position also broken, if runes can flip other runes about,
-;; then a simple rectangle check is not enough. imagine that you're filtering by
-;; aeo rect, they can compound the extend the area.
-;;
-
-;; Get whatever is in the WORLD at given POS.
-(define (world-cell-get world pos)
+;; Safely access the cells array and return the raw value.
+(define (cell-get world pos)
   (let ((arr (world-cells world))
         (x (pos-x pos))
         (y (pos-y pos)))
@@ -116,105 +74,91 @@
         (((w h) (array-dimensions arr)))
       (if (and (< -1 x w)
                (< -1 y h))
-          (let ((v (array-ref arr x y)))
-            (cond
-             ((eq? v #f) 'empty)
-             (#t v)))
-          #t))))
+          (array-ref arr x y)
+          'wall))))
 
-;; (define (world-cell-get world posit)
-;;   (let ((pos (rune-transform world posit)))
-;;     (let ((arr (world-cells world))
-;;           (x (pos-x pos))
-;;           (y (pos-y pos)))
-;;       (match-let
-;;         (((w h) (array-dimensions arr)))
-;;         (if (and (< -1 x w)
-;;                  (< -1 y h))
-;;             (let ((v (array-ref arr x y)))
-;;               (cond
-;;                 ((eq? v #f) 'empty)
-;;                 (#t v)))
-;;             #t)))))
+;; Get whatever is in the WORLD at given POS.
+(define (world-cell-get world pos)
+  (let ((v (cell-get world pos)))
+    (cond
+     ((entity? v) (entity-value v))
+     ((eq? v #f) 'empty)
+     (#t v))))
 
-
-
-(define (world-get-entity-value world pos)
-  (let ((e (world-cell-get world pos)))
-    (if (entity? e) (entity-value e) #f)))
-
-
-
+;; Is the cell at world empty?
 (define (world-cell-empty? world pos)
   (eq? (world-cell-get world pos) 'empty))
 
-(define (world-cell-creature? world pos)
-  (let ((v (world-cell-get world pos)))
-    (and (entity? v)
-         (creature? (entity-value v)))))
-
-;; Introduce a new creature into world at given
+;; Introduce a new entity into world at given
 ;; position, if there's space available. Returns #t if
 ;; successful, otherwise #f.
-(define world-spawn-creature
+(define world-spawn
   (case-lambda
-   ;; Allow naming the creature for later look-up.
-   ((world pos creature name)
-    (if (not (world-cell-empty? world pos)) #f
-        (begin
-          (world-cell-set! world (make-entity name creature) pos)
-          (hash-table-set! (world-creatures world) name pos)
-          #t)))
-   ;; Anonymous creature.
-   ((world pos creature)
-    (world-spawn-creature
-     world pos creature (gensym "anon-creature-")))))
+   ;; a new named entity
+   ((world pos value name)
+    (if (world-cell-empty? world pos)
+        (let ((entity (make-entity name pos value)))
+          (cell-set! world entity pos)
+          (hash-table-set! (world-entities world) name entity)
+          #t)
+        #f))
+   ;; anonymous value
+   ((world pos value)
+    (world-spawn
+     world pos value (gensym "anon-entity-")))))
 
-(define (world-find-creature world name)
-  (hash-table-ref/default (world-creatures world) name #f))
+;; Find where in the world a named thing is.
+;; Returns a position, or #f if no thing with name exists.
+(define (world-find world name)
+  (let ((ent (hash-table-ref/default (world-entities world) name #f)))
+    (cond ((entity? ent) (entity-pos ent))
+          (#t #f))))
 
+;; Introduce a wall, as long as there's nothing there already.
 (define (world-add-wall world pos)
-  (unless (world-cell-creature? world pos)
-    (world-cell-set! world 'wall pos)))
+  (if (world-cell-empty? world pos)
+      (begin (cell-set! world 'wall pos) #t)
+      #f))
 
-;; Update world by moving the creature at pos to the
-;; new position.
-(define (world-move-creature world what move)
+;; Update world by moving something around.
+;;
+;; what - a name or a position
+;; move - a direction or a new position
+;;
+;; The move only succeeds if the new position is empty.
+(define (world-move world what move)
   (let* ((pos
           (cond
-           ((symbol? what) (world-find-creature world what))
+           ((symbol? what)
+            (world-find world what))
            ((pos? what) what)
-           (#t (error ":["))))
+           (#t (error))))
          (new-pos
-          (if (symbol? move)
-              (relative-pos pos move)
-              move)))
-    (when (and (world-cell-creature? world pos)
-               (world-cell-empty? world new-pos))
-      (let ((nc (world-cell-get world pos)))
-        (world-cell-set! world #f pos)
-        (world-cell-set! world nc new-pos)
-        (hash-table-set! (world-creatures world)
-                         (entity-name nc) new-pos)))))
+          (cond
+           ((symbol? move) (relative-pos pos move))
+           ((pos? move) move)
+           (#t (error)))))
+    (when (world-cell-empty? world new-pos)
+      (let ((thing (cell-get world pos)))
+        (cell-set! world #f pos)
+        (cell-set! world thing new-pos)
+        (when (entity? thing)
+          (entity-set-pos!
+           (hash-table-ref (world-entities world) (entity-name thing))
+           new-pos))))))
 
-;; todo
-;;
-;; adding/removing entities is all gonna look the same... smoosh them
-;; all together?
-
-(define (world-remove-creature world pos)
-  (let ((c (world-cell-get world pos)))
-    (if (boolean? c) #f
-        (begin
-          (world-cell-set! world #f pos)
-          ;; fixme remove hash
-          c))))
+;; Remove whatever is at position, leaving an empty cell.
+(define (world-remove world pos)
+  (let ((thing (cell-get world pos)))
+    (when (entity? thing)
+      (hash-table-delete! (world-entities world) (entity-name thing)))
+    (cell-set! world #f pos)))
 
 
 
 ;; Returns an array suitable for use as world cells by
 ;; interpreting characters in STR.
-(define (world-read-array str)
+(define (read-array str)
   (define (world-read-char char)
     (match char
       (#\space #f)
@@ -223,51 +167,27 @@
   (define (read-txt-to-array str)
     (let* ((lines (filter (negate string-null?) (string-split str #\linefeed)))
            (max-length (reduce max 1 (map string-length lines)))
-           (pad (lambda (str) (string-pad-right str max-length #\space)))
+           (pad (λ (str) (string-pad-right str max-length #\space)))
            (padded (map pad lines)))
       (list->array 2 (reverse (map string->list padded)))))
   (let* ((src (read-txt-to-array str))
          (result (apply make-array #f (reverse (array-dimensions src)))))
     (array-index-map!
      result
-     (lambda (i j)
+     (λ (i j)
        (world-read-char
         (array-ref src j i))))
     result))
 
-(define (make-world-from-file file)
-  (let* ((str (call-with-input-file file
-                (lambda (port)
-                  (get-string-all port))))
-         (cells (world-read-array str))
-         (w (make-world)))
+;; Construct a new world by reading characters from PORT.
+;; Spaces are empty cells.
+;; Hashes are walls.
+;; The world is as wide as the longest line;
+;; shorter lines are padded with empty cells.
+(define (make-world-from-port port)
+  (let* ((str (get-string-all port))
+         (cells (read-array str))
+         (w (make-world-raw)))
     (world-set-cells! w cells)
-    (world-set-creatures! w (make-hash-table))
-    (world-set-runes! w (make-hash-table))
+    (world-set-entities! w (make-hash-table))
     w))
-
-
-
-(define world-add-rune
-  (case-lambda
-   ((world pos rune name)
-    (when (world-cell-empty? world pos)
-      (world-cell-set! world (make-entity name rune) pos)
-      (hash-table-set! (world-runes world) name pos)))
-   ((world pos rune)
-    (world-add-rune world pos rune (gensym "anon-rune-")))))
-
-(define (world-remove-rune world name)
-  (call/ec
-   (λ (ret)
-     (let* ((rs (world-runes world))
-            (p (hash-table-ref/default rs name #f)))
-       (unless p
-         (msg 'warn "tried to remove a rune that doesn't exist: ~a" name)
-         (ret #f))
-       (world-cell-set! world #f p)
-       (hash-table-delete! rs name)
-       #t))))
-
-(define (world-find-rune world name)
-  (hash-table-ref/default (world-runes world) name #f))

@@ -1,2 +1,2 @@
-((@ (test world) run-all))
-((@ (test game) run-all))
+((@ (test world) all))
+;; ((@ (test game) run-all))

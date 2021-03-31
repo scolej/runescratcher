@@ -56,9 +56,8 @@
        (let ((loc (current-source-location)))
          (let ((f (assq-ref loc 'filename))
                (l (assq-ref loc 'line)))
-           (format #t "test: ~a (~a:~a)..." descr f (1+ l))))
-       (when (call-with-bt-exn (λ () body body* ...))
-         (format #t " passed\n"))))))
+           (format #t "test: ~a (~a:~a)\n" descr f (1+ l))))
+       (call-with-bt-exn (λ () body body* ...))))))
 
 (define-syntax trc
   (syntax-rules ()
