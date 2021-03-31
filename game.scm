@@ -1,10 +1,16 @@
 (define-module (game)
-  #:use-module (world)
-  #:use-module (srfi srfi-26)
-  #:use-module (srfi srfi-9)
   #:use-module (test)
-  #:export (make-game-with-world
-            game-input))
+  #:use-module (srfi srfi-9)
+  #:use-module (world)
+  #:export
+  (make-game
+   make-game-with-world
+   game-world
+   game-input-handler
+   game-set-world!
+   game-set-input-handler!
+   game-input
+   top-level))
 
 (define-record-type <game>
   (make-game) game?

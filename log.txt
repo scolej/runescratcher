@@ -142,9 +142,28 @@ continue:
 - fix up imports, it's a mess, need to re-export everything a module needs
 - disentangle formatting in test case macros
 
+---------- 2021-03-31 11:02 ----------
 
+* paredit, how to make delete region work? check if it contain parens first?
 
+* guile how to log what gets loaded? how can i verify that my compiled files
+  are being loaded & not re-compiled or interpreted?
 
+--
+
+still i am confounded by seemingly missing entries in backtrace. i have a method
+A, it calls B, which calls C; yet i don't see B in the trace! and try as i might
+to disable potential inlining using `compile -O0`, i can't seem to get it!
+
+--
+
+bugs everywhere! how does the compilation pattern matching work for guile's output?
+i end up in different places depending on whether i click the file or the line:
+
+    In game-test.scm:
+         38:0  4 (rune-move-aoe)
+
+and the entries in compilation-regexp-alist-alist are separate! so is it a fluke?
 
 
 

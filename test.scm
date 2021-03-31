@@ -9,8 +9,8 @@
     call-with-bt-exn
    trc))
 
-(define-exception-type <test-exception> &assertion-failure
-  (make-test-exception msg) test-exception?
+(define-exception-type &test-exception &assertion-failure
+  make-test-exception test-exception?
   (msg test-exception-message))
 
 (define-syntax assert-equal
@@ -39,7 +39,7 @@
       (with-exception-handler
        (λ (exn)
          (if (test-exception? exn)
-             (abort-to-prompt 'err (make-stack #t) exn)
+             (abort-to-prompt 'err (make-stack #t 3) exn)
              (begin
                (newline)                ; fixme entangled formatting
                (raise-exception exn))))

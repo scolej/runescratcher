@@ -1,11 +1,13 @@
 set -exu
 
-export GUILE_LOAD_PATH=$(pwd)
-export GUILE_AUTO_COMPILE=fresh
+ulimit -m 100
+ulimit -t 5
 
-# guild compile -O0 test.scm
-# guild compile -O0 world.scm
-# guild compile -O0 game.scm
+export GUILE_LOAD_PATH=$(pwd) GUILE_AUTO_COMPILE=1
 
-# guile --debug -l world-test.scm -c '((@ (world-test) run-all))'
-guile --debug world-test.scm
+# for f in *.scm; do
+#     guild compile -O0 "$f"
+# done
+
+guile='guile --debug'
+$guile --debug test-all.scm

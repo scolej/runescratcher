@@ -44,7 +44,7 @@
                    (attr-on! stdscr (color-pair ci))
                    (addstr stdscr str #:x x #:y (- h y 1))
                    (attr-off! stdscr (color-pair ci))))))
-          (let* ((ve (world-get-cell world (make-pos x y)))
+          (let* ((ve (world-cell-get world (make-pos x y)))
                  (v (if (entity? ve) (entity-value ve) ve))
                  (c (cond
                       ((eq? v 'wall) "#")

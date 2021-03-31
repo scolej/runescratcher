@@ -7,7 +7,6 @@
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-42)
   #:use-module (srfi srfi-69)
-  #:use-module (test)
   #:export
   (make-pos
    pos-x
@@ -19,10 +18,11 @@
    entity-name
    entity-value
    make-world
+   make-blank-world
    world-read-array
+   world-cell-get
    world-set-cells!
    world-set-runes!
-   world-get-cell
    world-get-entity-value ; fixme :(
    world-move-creature
    world-spawn-creature
@@ -100,89 +100,81 @@
   (make-rune pos) rune?
   (pos rune-pos rune-set-pos!))
 
-(define (rune-affects pos rune)
+(define (rune-apply rune pos)
   (let* ((r (rune-pos rune))
          (rx (pos-x r))
          (ry (pos-y r))
          (px (pos-x pos))
-         (py (pos-y pos)))
-    (and (< (abs (- px rx)) 2)
-         (< (abs (- py ry)) 2))))
+         (py (pos-y pos))
+         (range 2)
+         (in-range (and (< (abs (- px rx)) range)
+                        (< (abs (- py ry)) range))))
+    (if (not in-range)
+        pos
+        (make-pos px (- (* 2 ry) py)))))
 
-(define (rune-apply rune pos)
-  (let* ((r (rune-pos rune))
-         (ry (pos-y r))
-         (px (pos-x pos))
-         (py (pos-y pos)))
-    (make-pos px (- (* 2 ry) py))))
-
-;; Transforms a world position to a valid index into the cells array.
-;; - wrap around indices outside bounds
-;; - transform positions inside runes' area-of-effect
-;;
-;; todo, worry about whether wrap or transform first makes a difference
-(define (world->array world pos)
-  (define (wrap pos)
-    (match-let (((w h) (array-dimensions (world-cells world))))
-      (let ((x (modulo (pos-x pos) w))
-            (y (modulo (pos-y pos) h)))
-        (make-pos x y))))
-  (define (rune-transforms pos)
-    (let* ((rune-ps (hash-table-values (world-runes world)))
-           (all (map (compose entity-value (cut world-cell-get world <>)) rune-ps))
-           (rel (filter (cut rune-affects pos <>) all)))
-      (fold rune-apply pos rel)))
-  ((compose wrap rune-transforms) pos))
-
-;; fixme - how to reverse a rune?
-;; do we say that simply applying the funtion to itself is enough?
-(define (array->world world pos)
-  (define (wrap pos)
-    (match-let (((w h) (array-dimensions (world-cells world))))
-      (let ((x (modulo (pos-x pos) w))
-            (y (modulo (pos-y pos) h)))
-        (make-pos x y))))
-  (define (rune-transforms pos)
-    (let* ((rune-ps (hash-table-values (world-runes world)))
-           (all (map (compose entity-value (cut world-cell-get world <>)) rune-ps))
-           (rel (filter (cut rune-affects pos <>) all)))
-      (fold rune-apply pos rel)))
-  ((compose wrap rune-transforms) pos))
+;; Transform a position with all the impacting rune effects.
+(define (rune-transform world pos)
+  (let* ((rune-ps (hash-table-values (world-runes world)))
+         (all (map (compose entity-value
+                            (cut world-cell-get-prim world <>))
+                   rune-ps)))
+    (fold rune-apply pos rel)))
 
 ;; Set the value of the cell at POS to VAL.
-;; No checking, no position transform, no nothing.
-;; Use with care.
 (define (world-cell-set! world val pos)
   (array-set! (world-cells world) val (pos-x pos) (pos-y pos)))
 
-;; Get whatever is in the world at given position
-;; No checking, no position transform, no nothing.
-;; Use with care.
+;; fixme
+;;
+;; filtering runes by position also broken, if runes can flip other runes about,
+;; then a simple rectangle check is not enough. imagine that you're filtering by
+;; aeo rect, they can compound the extend the area.
+;;
+
+;; Get whatever is in the WORLD at given POS.
 (define (world-cell-get world pos)
-  (let ((w (world-cells world))
+  (let ((arr (world-cells world))
         (x (pos-x pos))
         (y (pos-y pos)))
-    (let ((v (array-ref w x y)))
-      (cond
-       ((eq? v #f) 'empty)
-       (#t v)))))
+    (match-let
+        (((w h) (array-dimensions arr)))
+      (if (and (< -1 x w)
+               (< -1 y h))
+          (let ((v (array-ref arr x y)))
+            (cond
+             ((eq? v #f) 'empty)
+             (#t v)))
+          #t))))
 
-;; Gets what's in the world at the provided position.
-(define (world-get-cell world pos)
-  (world-cell-get world (world->array world pos)))
+;; (define (world-cell-get world posit)
+;;   (let ((pos (rune-transform world posit)))
+;;     (let ((arr (world-cells world))
+;;           (x (pos-x pos))
+;;           (y (pos-y pos)))
+;;       (match-let
+;;         (((w h) (array-dimensions arr)))
+;;         (if (and (< -1 x w)
+;;                  (< -1 y h))
+;;             (let ((v (array-ref arr x y)))
+;;               (cond
+;;                 ((eq? v #f) 'empty)
+;;                 (#t v)))
+;;             #t)))))
+
+
 
 (define (world-get-entity-value world pos)
-  (let ((e (world-get-cell world pos)))
+  (let ((e (world-cell-get world pos)))
     (if (entity? e) (entity-value e) #f)))
 
 
 
 (define (world-cell-empty? world pos)
-  (eq? (world-get-cell world pos) 'empty))
+  (eq? (world-cell-get world pos) 'empty))
 
 (define (world-cell-creature? world pos)
-  (let* ((p (world->array world pos))
-         (v (world-cell-get world p)))
+  (let ((v (world-cell-get world pos)))
     (and (entity? v)
          (creature? (entity-value v)))))
 
@@ -193,26 +185,22 @@
   (case-lambda
    ;; Allow naming the creature for later look-up.
    ((world pos creature name)
-    (let* ((p (world->array world pos)))
-      (if (not (world-cell-empty? world p)) #f
-          (begin
-            (world-cell-set! world (make-entity name creature) p)
-            (hash-table-set! (world-creatures world) name p)
-            #t))))
+    (if (not (world-cell-empty? world pos)) #f
+        (begin
+          (world-cell-set! world (make-entity name creature) pos)
+          (hash-table-set! (world-creatures world) name pos)
+          #t)))
    ;; Anonymous creature.
    ((world pos creature)
     (world-spawn-creature
      world pos creature (gensym "anon-creature-")))))
 
 (define (world-find-creature world name)
-  (array->world
-   world
-   (hash-table-ref/default (world-creatures world) name #f)))
+  (hash-table-ref/default (world-creatures world) name #f))
 
 (define (world-add-wall world pos)
-  (let ((p (world->array world pos)))
-    (unless (world-cell-creature? world p)
-      (world-cell-set! world 'wall p))))
+  (unless (world-cell-creature? world pos)
+    (world-cell-set! world 'wall pos)))
 
 ;; Update world by moving the creature at pos to the
 ;; new position.
@@ -225,14 +213,12 @@
          (new-pos
           (if (symbol? move)
               (relative-pos pos move)
-              move))
-         (pos-arr (world->array world pos))
-         (new-pos-arr (world->array world new-pos)))
+              move)))
     (when (and (world-cell-creature? world pos)
                (world-cell-empty? world new-pos))
-      (let ((nc (world-cell-get world pos-arr)))
-        (world-cell-set! world #f pos-arr)
-        (world-cell-set! world nc new-pos-arr)
+      (let ((nc (world-cell-get world pos)))
+        (world-cell-set! world #f pos)
+        (world-cell-set! world nc new-pos)
         (hash-table-set! (world-creatures world)
                          (entity-name nc) new-pos)))))
 
@@ -242,11 +228,10 @@
 ;; all together?
 
 (define (world-remove-creature world pos)
-  (let* ((p (world->array world pos))
-         (c (world-cell-get world p)))
+  (let ((c (world-cell-get world pos)))
     (if (boolean? c) #f
         (begin
-          (world-cell-set! world #f p)
+          (world-cell-set! world #f pos)
           ;; fixme remove hash
           c))))
 
@@ -291,10 +276,9 @@
 (define world-add-rune
   (case-lambda
    ((world pos rune name)
-    (let ((p (world->array world pos)))
-      (when (world-cell-empty? world p)
-        (world-cell-set! world (make-entity name rune) pos)
-        (hash-table-set! (world-runes world) name p))))
+    (when (world-cell-empty? world pos)
+      (world-cell-set! world (make-entity name rune) pos)
+      (hash-table-set! (world-runes world) name pos)))
    ((world pos rune)
     (world-add-rune world pos rune (gensym "anon-rune-")))))
 
