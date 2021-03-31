@@ -165,6 +165,11 @@ i end up in different places depending on whether i click the file or the line:
 
 and the entries in compilation-regexp-alist-alist are separate! so is it a fluke?
 
+---------- 2021-03-31 19:57 ----------
+
+ok maybe understanding the missing backtrace entries... i think it's to do with
+tail-calls. if a method is tail-called, it's call-site doesn't show up.
+
 
 
 ---

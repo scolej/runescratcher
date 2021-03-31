@@ -1,4 +1,5 @@
 (define-module (test trippy-world)
+  #:use-module (srfi srfi-26)
   #:use-module (util test)
   #:use-module (runes pos)
   #:use-module (runes trippy-world)
@@ -27,10 +28,22 @@
     (for-each (λ (p) (world-add-wall w p)) walls-before)
     (world-add-transform
      w (make-rectangle 1 3 1 3)
-     (λ (x y) (make-pos x (- (* 2 2) y))))
-    (for-each (λ (p)
-                (assert-equal 'wall (world-cell-get w p)))
-              walls-after)))
+     (cut pos-map-components
+          <>
+          (λ (x y) (make-pos x (- (* 2 2) y)))))
+    (for-each
+     (λ (p)
+       (assert-equal 'wall (world-cell-get w p)))
+     walls-after)))
+
+;; next cases
+;;
+;; - add a named thing inside rect of transform
+;; - move a thing from inside to outside with abs pos
+;; - move a thing from inside to outside with direction
+;; - ... and outside to inside
+;;
+;; better test errors, how?
 
 (define (all)
   (flip-vert))

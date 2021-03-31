@@ -7,6 +7,7 @@
 ;;; "world" position to a "true" position.
 
 (define-module (runes trippy-world)
+  #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-69)
   #:use-module (runes pos)
@@ -30,12 +31,22 @@
    rectangle-bottom))
 
 (define-record-type <rectangle>
-  (make-rectangle l r t b)
+  (make-rectangle l r b t)
   rectangle?
   (l rectangle-left)
   (r rectangle-right)
-  (t rectangle-top)
-  (b rectangle-bottom))
+  (b rectangle-bottom)
+  (t rectangle-top))
+
+(define (rectangle-contains rect pos)
+  (let ((x (pos-x pos))
+        (y (pos-y pos))
+        (l (rectangle-left rect))
+        (r (rectangle-right rect))
+        (b (rectangle-bottom rect))
+        (t (rectangle-top rect)))
+    (and (<= l x r)
+         (<= b y t))))
 
 (define-record-type <transform>
   (make-transform rect f)
@@ -58,7 +69,13 @@
   (base:world-add-wall (base-world world) pos))
 
 (define (world-cell-get world pos)
-  (base:world-cell-get (base-world world) pos))
+  (let* ((ts (hash-table-values (get-transforms world)))
+         (rel (filter (λ (t)
+                        (rectangle-contains (transform-rect t) pos))
+                      ts))
+         (fs (map transform-function rel))
+         (pos ((apply compose identity fs) pos)))
+    (base:world-cell-get (base-world world) pos)))
 
 ;; Adds the provided transform to the world.
 ;; Returns a symbol which can be used to refer to this transform later.
