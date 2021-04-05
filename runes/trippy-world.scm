@@ -59,6 +59,19 @@
   (world base-world set-base-world!)
   (transforms get-transforms set-transforms!))
 
+(define (world->true world pos)
+  (let* ((ts (hash-table-values (get-transforms world)))
+         (rel (filter
+               (λ (t)
+                 (rectangle-contains (transform-rect t) pos))
+               ts))
+         (fs (map transform-function rel)))
+    ((apply compose identity fs) pos)))
+
+(define (true->world world pos)
+  ;; fixme wrong
+  (world->true world pos))
+
 (define (make-world-empty size)
   (let ((w (make-trippy-world)))
     (set-base-world! w (base:make-world-empty size))
@@ -69,13 +82,8 @@
   (base:world-add-wall (base-world world) pos))
 
 (define (world-cell-get world pos)
-  (let* ((ts (hash-table-values (get-transforms world)))
-         (rel (filter (λ (t)
-                        (rectangle-contains (transform-rect t) pos))
-                      ts))
-         (fs (map transform-function rel))
-         (pos ((apply compose identity fs) pos)))
-    (base:world-cell-get (base-world world) pos)))
+  (base:world-cell-get
+   (base-world world) (world->true world pos)))
 
 ;; Adds the provided transform to the world.
 ;; Returns a symbol which can be used to refer to this transform later.
@@ -85,3 +93,36 @@
         (t (make-transform rect f)))
     (hash-table-set! ts  sym t)
     sym))
+
+(define world-spawn
+  (case-lambda
+   ((world pos value name)
+    (base:world-spawn
+     (base-world world) (world->true world pos) value name))
+   ((world pos value)
+    (base:world-spawn
+     (base-world world) (world->true world pos) value))))
+
+;; fixme spawn & move
+;; silly to branch twice with the same logic,
+;; should provide API which is straight to the point
+
+(define (world-move world what move)
+  (let* ((pos0
+          (cond
+           ((pos? what) what)
+           ((symbol? what) (world-find world what))
+           (#t (error))))
+         (pos1
+          (cond
+           ((pos? move) move)
+           ((symbol? move) (relative-pos pos0 move))
+           (#t (error)))))
+    (base:world-move
+     (base-world world)
+     (world->true world pos0)
+     (world->true world pos1))))
+
+(define (world-find world name)
+  (true->world
+   world (base:world-find (base-world world) name)))
