@@ -3,7 +3,7 @@
  (srfi srfi-9)
  (ncurses curses)
  (runes pos)
- (runes world)
+ (runes trippy-world)
  (runes game))
 
 (define world (call-with-input-file "map.txt" make-world-from-port))

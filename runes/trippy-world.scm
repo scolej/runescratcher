@@ -88,6 +88,12 @@
     (set-transforms! w (make-hash-table))
     w))
 
+(define (make-world-from-port port)
+  (let ((w (make-trippy-world)))
+    (set-base-world! w (base:make-world-from-port port))
+    (set-transforms! w (make-hash-table))
+    w))
+
 (define (world-add-wall world pos)
   (base:world-add-wall (base-world world) pos))
 
@@ -96,13 +102,10 @@
    (base-world world) (world->true world pos)))
 
 ;; Adds the provided transform to the world.
-;; Returns a symbol which can be used to refer to this transform later.
-(define (world-add-transform world rect f fi)
+(define (world-add-transform world rect f fi sym)
   (let ((ts (get-transforms world))
-        (sym (gensym "transform-"))
         (t (make-transform rect f fi)))
-    (hash-table-set! ts  sym t)
-    sym))
+    (hash-table-set! ts  sym t)))
 
 (define (world-remove-transform world t)
   (hash-table-delete! (get-transforms world) t))

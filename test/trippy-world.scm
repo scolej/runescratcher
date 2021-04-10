@@ -10,12 +10,12 @@
   (let ((w (make-world-empty 5)))
     w))
 
-(define (add-flip-transform w)
+(define (add-flip-transform w t)
   (let ((f (cut pos-map-components <>
                 (λ (x y)
                   (make-pos x (- (* 2 2) y))))))
     (world-add-transform
-     w (make-rectangle 1 3 1 3) f f)))
+     w (make-rectangle 1 3 1 3) f f t)))
 
 (test-case flip-vert
   "a transformation to mirror vertically"
@@ -33,7 +33,7 @@
                 (make-pos 3 1)
                 (make-pos 4 4))))
     (for-each (λ (p) (world-add-wall w p)) walls-before)
-    (add-flip-transform w)
+    (add-flip-transform w (gensym))
     (for-each
       (λ (p)
          (assert-equal 'wall (world-cell-get w p)))
@@ -56,7 +56,7 @@
             (assert-pos w new-pos)
             #f)))
     (world-spawn w (make-pos 2 0) 'wizard 'player)
-    (add-flip-transform w)
+    (add-flip-transform w (gensym))
     (move-north (make-pos 2 1))
     (move-north (make-pos 2 2))
     (move-north (make-pos 2 3))
@@ -70,9 +70,9 @@
             (world-move w 'player 'north)
             (assert-pos w new-pos)
             #f))
-         (t #f))
+         (t (gensym)))
     (world-spawn w (make-pos 2 0) 'wizard 'player)
-    (set! t (add-flip-transform w))
+    (add-flip-transform w t)
     (move-north (make-pos 2 1))
     (world-remove-transform w t)
     (assert-pos w (make-pos 2 3))))
@@ -84,10 +84,9 @@
           (λ (new-pos)
             (world-move w 'player 'north)
             (assert-pos w new-pos)
-            #f))
-         (t #f))
+            #f)))
     (world-spawn w (make-pos 2 1) 'wizard 'player)
-    (add-flip-transform w)
+    (add-flip-transform w (gensym))
     (assert-pos w (make-pos 2 3))))
 
 ;; fixme next cases
@@ -98,6 +97,13 @@
 ;; - ... and outside to inside
 ;;
 ;; better test errors, how?
+;;
+;;
+;; started breaking
+;;
+;; things can be duped when transforms overlap?
+;; things can also disappear?
+;; i can no longer move when there's two of me?
 
 (define (all)
   (flip-vert)

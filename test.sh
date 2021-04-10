@@ -1,7 +1,7 @@
 set -eu
 
 ulimit -m 100
-ulimit -t 5
+ulimit -t 10
 
 export GUILE_LOAD_PATH=$(pwd)
 

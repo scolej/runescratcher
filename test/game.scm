@@ -88,6 +88,6 @@
 
 (define (all)
   (simple-movement)
-  ;; fixme (write-runes)
+  (write-runes)
   ;; (rune-move-aoe)
   )

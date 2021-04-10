@@ -3,6 +3,7 @@
   #:use-module (runes pos)
   #:use-module (runes trippy-world)
   #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-26)
   #:export
   (make-game
    make-game-with-world
@@ -11,7 +12,11 @@
    game-set-world!
    game-set-input-handler!
    game-input
-   top-level))
+   top-level
+
+   make-rune
+   rune?
+   game-add-rune))
 
 (define-record-type <game>
   (make-game) game?
@@ -84,9 +89,38 @@
        (let* ((w (game-world game))
               (d (arrow-to-cardinal-dir input))
               (p (relative-pos (world-find w player-name) d)))
-         (world-spawn w p (make-rune p))
+         (add-rune w p (make-rune #\r 'flip))
          (game-input-back-to-top-level game)))
       (else
        (game-alert (format #f "no action for ~a" input))))))
 
 
+
+;; Make a vertical mirror function centreat at CY.
+(define (flipf cy)
+  (cut pos-map-components <>
+       (λ (x y)
+         (make-pos x (- (* 2 cy) y)))))
+
+(define-record-type <rune>
+  (make-rune-raw id char effect) rune?
+  (id rune-id)
+  (char rune-char)
+  (effect rune-effect))
+
+(define make-rune
+  (cut make-rune-raw (gensym "rune-") <> <>))
+
+(define (add-rune w pos rune)
+  (let ((effect (rune-effect rune))
+        (id (rune-id rune))
+        (x (pos-x pos))
+        (y (pos-y pos)))
+    (world-spawn w pos rune)
+    (case effect
+      ((flip)
+       (let ((f (flipf y))
+             (r (make-rectangle
+                 (- x 2) (+ x 2) (- y 2) (+ y 2))))
+         (world-add-transform w r f f id)))
+      (else (error)))))
