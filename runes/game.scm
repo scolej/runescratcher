@@ -1,6 +1,7 @@
 (define-module (runes game)
   #:use-module (util test)
-  #:use-module (runes world)
+  #:use-module (runes pos)
+  #:use-module (runes trippy-world)
   #:use-module (srfi srfi-9)
   #:export
   (make-game
@@ -82,8 +83,8 @@
       ((left right up down)
        (let* ((w (game-world game))
               (d (arrow-to-cardinal-dir input))
-              (p (relative-pos (world-find-creature w player-name) d)))
-         (world-add-rune w p (make-rune p))
+              (p (relative-pos (world-find w player-name) d)))
+         (world-spawn w p (make-rune p))
          (game-input-back-to-top-level game)))
       (else
        (game-alert (format #f "no action for ~a" input))))))

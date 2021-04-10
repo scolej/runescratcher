@@ -11,4 +11,4 @@ export GUILE_LOAD_PATH=$(pwd)
 export GUILE_AUTO_COMPILE=1
 
 guile='guile --debug'
-$guile --debug test/run.scm
+$guile --debug test/run.scm 2>&1 #| fold -s -w 80

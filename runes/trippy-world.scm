@@ -23,6 +23,7 @@
    world-spawn
    world-add-wall
    world-add-transform
+   world-remove-transform
    make-rectangle
    rectangle?
    rectangle-left
@@ -49,28 +50,37 @@
          (<= b y t))))
 
 (define-record-type <transform>
-  (make-transform rect f)
+  (make-transform rect f fi)
   transform?
   (rect transform-rect)
-  (f transform-function))
+  (f transform-function)
+  (fi transform-function-inverse))
 
 (define-record-type <trippy-world>
   (make-trippy-world) trippy-world?
   (world base-world set-base-world!)
   (transforms get-transforms set-transforms!))
 
+;; Finds all transforms in WORLD which might affect POS.
+;;
+;; fixme each time we include one, we need to intersect it with the rest
+(define (relevant-transforms world pos)
+  (filter
+   (λ (t)
+     (rectangle-contains (transform-rect t) pos))
+   (hash-table-values (get-transforms world))))
+
 (define (world->true world pos)
-  (let* ((ts (hash-table-values (get-transforms world)))
-         (rel (filter
-               (λ (t)
-                 (rectangle-contains (transform-rect t) pos))
-               ts))
-         (fs (map transform-function rel)))
-    ((apply compose identity fs) pos)))
+  ((apply compose identity
+          (map transform-function
+               (relevant-transforms world pos)))
+   pos))
 
 (define (true->world world pos)
-  ;; fixme wrong
-  (world->true world pos))
+  ((apply compose identity
+          (map transform-function-inverse
+               (relevant-transforms world pos)))
+   pos))
 
 (define (make-world-empty size)
   (let ((w (make-trippy-world)))
@@ -87,12 +97,15 @@
 
 ;; Adds the provided transform to the world.
 ;; Returns a symbol which can be used to refer to this transform later.
-(define (world-add-transform world rect f)
+(define (world-add-transform world rect f fi)
   (let ((ts (get-transforms world))
         (sym (gensym "transform-"))
-        (t (make-transform rect f)))
+        (t (make-transform rect f fi)))
     (hash-table-set! ts  sym t)
     sym))
+
+(define (world-remove-transform world t)
+  (hash-table-delete! (get-transforms world) t))
 
 (define world-spawn
   (case-lambda

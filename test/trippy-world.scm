@@ -11,12 +11,11 @@
     w))
 
 (define (add-flip-transform w)
-  (world-add-transform
-    w (make-rectangle 1 3 1 3)
-    (cut pos-map-components
-         <>
-         (lambda (x y)
-           (make-pos x (- (* 2 2) y))))))
+  (let ((f (cut pos-map-components <>
+                (λ (x y)
+                  (make-pos x (- (* 2 2) y))))))
+    (world-add-transform
+     w (make-rectangle 1 3 1 3) f f)))
 
 (test-case flip-vert
   "a transformation to mirror vertically"
@@ -44,12 +43,12 @@
   ;; fixme backtrace site still missing!
   ;; is it the lambda?
   ;; simple "expectation" to get richer fails
-  (display position) (newline)
+  ;; (display position) (newline)
   (assert-equal position (world-find world 'player))
   (assert-equal 'wizard (world-cell-get world position)))
 
 (test-case flip-vert-move-through
-  "unit moves into, through, and out of, the vertical mirror"
+  "unit moves into, through, and out of, a vertical mirror"
   (let* ((w (make-test-world))
          (move-north
           (λ (new-pos)
@@ -63,7 +62,35 @@
     (move-north (make-pos 2 3))
     (move-north (make-pos 2 4))))
 
-;; next cases
+(test-case remove-transform
+  "move a unit into a transform, then remove the transform"
+  (let* ((w (make-test-world))
+         (move-north
+          (λ (new-pos)
+            (world-move w 'player 'north)
+            (assert-pos w new-pos)
+            #f))
+         (t #f))
+    (world-spawn w (make-pos 2 0) 'wizard 'player)
+    (set! t (add-flip-transform w))
+    (move-north (make-pos 2 1))
+    (world-remove-transform w t)
+    (assert-pos w (make-pos 2 3))))
+
+(test-case add-transform-over-unit
+  "add a transform on top of a unit"
+  (let* ((w (make-test-world))
+         (move-north
+          (λ (new-pos)
+            (world-move w 'player 'north)
+            (assert-pos w new-pos)
+            #f))
+         (t #f))
+    (world-spawn w (make-pos 2 1) 'wizard 'player)
+    (add-flip-transform w)
+    (assert-pos w (make-pos 2 3))))
+
+;; fixme next cases
 ;;
 ;; - add a named thing inside rect of transform
 ;; - move a thing from inside to outside with abs pos
@@ -74,4 +101,6 @@
 
 (define (all)
   (flip-vert)
-  (flip-vert-move-through))
+  (flip-vert-move-through)
+  (remove-transform)
+  (add-transform-over-unit))

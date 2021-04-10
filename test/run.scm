@@ -1,3 +1,3 @@
-;; ((@ (test world) all))
+((@ (test world) all))
 ((@ (test trippy-world) all))
-;; ((@ (test game) all))
+((@ (test game) all))
