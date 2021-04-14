@@ -22,4 +22,7 @@ dur(a, b) = (strptime("%Y-%m-%d %H:%M", b) - strptime("%Y-%m-%d %H:%M", a)) / 60
 plot "< sed 's/ -- /;/' < timelog.txt" \
      using (strptime("%Y-%m-%d", stringcolumn(1)))\
      :(dur(stringcolumn(1),stringcolumn(2))) \
-     smooth cumulative with lines lc "black"
+     smooth cumulative with steps lc "black"
+
+# lines lc "black"
+# boxes fill solid fc "black"

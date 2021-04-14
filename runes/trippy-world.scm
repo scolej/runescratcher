@@ -9,6 +9,7 @@
 (define-module (runes trippy-world)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-69)
   #:use-module (runes pos)
   #:use-module ((runes world) #:prefix base:)
@@ -23,35 +24,12 @@
    world-spawn
    world-add-wall
    world-add-transform
-   world-remove-transform
-   make-rectangle
-   rectangle?
-   rectangle-left
-   rectangle-right
-   rectangle-top
-   rectangle-bottom))
-
-(define-record-type <rectangle>
-  (make-rectangle l r b t)
-  rectangle?
-  (l rectangle-left)
-  (r rectangle-right)
-  (b rectangle-bottom)
-  (t rectangle-top))
-
-(define (rectangle-contains rect pos)
-  (let ((x (pos-x pos))
-        (y (pos-y pos))
-        (l (rectangle-left rect))
-        (r (rectangle-right rect))
-        (b (rectangle-bottom rect))
-        (t (rectangle-top rect)))
-    (and (<= l x r)
-         (<= b y t))))
+   world-remove-transform))
 
 (define-record-type <transform>
-  (make-transform rect f fi)
+  (make-transform i rect f fi)
   transform?
+  (i transform-index)
   (rect transform-rect)
   (f transform-function)
   (fi transform-function-inverse))
@@ -62,25 +40,50 @@
   (transforms get-transforms set-transforms!))
 
 ;; Finds all transforms in WORLD which might affect POS.
-;;
-;; fixme each time we include one, we need to intersect it with the rest
+;; Results are sorted earliest transform first.
 (define (relevant-transforms world pos)
-  (filter
-   (λ (t)
-     (rectangle-contains (transform-rect t) pos))
-   (hash-table-values (get-transforms world))))
+  (sort
+   (rectangle-tangle
+    (hash-table-values (get-transforms world))
+    transform-rect
+    pos)
+   ;; todo sort-by? compare?
+   (λ (a b)
+     (< (transform-index a)
+        (transform-index b)))))
+
+;; Apply the functions FS to X.
+;; First element of F is applied last.
+;; fixme recurse to be faster?
+(define (chain fs x)
+  ((apply compose identity fs) x))
+
+;; Apply a transform T to POS if the area-of-effect contains POS.
+(define (apply-transform t pos)
+  (if (rectangle-contains (transform-rect t) pos)
+      ((transform-function t) pos)
+      pos))
+
+;; Apply transform T's inverse transform to POS if the area-of-effect
+;; contains POS.
+(define (apply-transform-inverse t pos)
+  (if (rectangle-contains (transform-rect t) pos)
+      ((transform-function-inverse t) pos)
+      pos))
 
 (define (world->true world pos)
-  ((apply compose identity
-          (map transform-function
-               (relevant-transforms world pos)))
-   pos))
+  (let* ((rel (relevant-transforms world pos))
+         (g (λ (t) (cut apply-transform t <>)))
+         (fs (map g rel)))
+    (display "w->t ")(display (length fs)) (newline)
+    (chain fs pos)))
 
 (define (true->world world pos)
-  ((apply compose identity
-          (map transform-function-inverse
-               (relevant-transforms world pos)))
-   pos))
+  (let* ((rel (reverse (relevant-transforms world pos)))
+         (g (λ (t) (cut apply-transform-inverse t <>)))
+         (fs (map g rel)))
+    (display "t->w ") (display (length fs)) (newline)
+    (chain fs pos)))
 
 (define (make-world-empty size)
   (let ((w (make-trippy-world)))
@@ -101,11 +104,20 @@
   (base:world-cell-get
    (base-world world) (world->true world pos)))
 
+;; fixme parallelism
+(define transform-ticker-next
+  (let ((ticker 0))
+    (λ ()
+      (set! ticker (1+ ticker))
+      ticker)))
+
 ;; Adds the provided transform to the world.
 (define (world-add-transform world rect f fi sym)
   (let ((ts (get-transforms world))
-        (t (make-transform rect f fi)))
-    (hash-table-set! ts  sym t)))
+        (t (make-transform
+            (transform-ticker-next)
+            rect f fi)))
+    (hash-table-set! ts sym t)))
 
 (define (world-remove-transform world t)
   (hash-table-delete! (get-transforms world) t))
@@ -141,4 +153,5 @@
 
 (define (world-find world name)
   (true->world
-   world (base:world-find (base-world world) name)))
+   world
+   (base:world-find (base-world world) name)))

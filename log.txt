@@ -174,5 +174,6 @@ tail-calls. if a method is tail-called, it's call-site doesn't show up.
 
 ---
 
-ffmpeg -y -video_size 802x602 -framerate 30 -f x11grab -i :0.0 -pix_fmt yuv420p temp.mp4
-mv temp.mp4 vid-$(date +%Y%m%d%H%M%S).mp4
+ffmpeg -y -video_size 802x602 -framerate 3 -f x11grab -i :0.0 -pix_fmt yuv420p temp.mp4
+cp temp.mp4 ~/ev/prog/runes2-vids/vid-$(date +%Y%m%d%H%M%S).mp4
+curl -T "{temp.mp4}" -u shandalf@fastmail.com:massancrtx37us9l https://myfiles.fastmail.com/shared
