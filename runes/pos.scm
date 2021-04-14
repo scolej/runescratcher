@@ -76,21 +76,20 @@
 
 ;; OBJS is a list of things which can be mapped to a rectangle using RECTF.
 ;; Finds the set of OBJS whose rectangles intersect with any other
-;; rectangle which eventually contains with POS. Results come out in the
-;; reverse order.
+;; rectangle which eventually contains with POS.
+;; Order of results is unspecified.
 (define (rectangle-tangle objs rectf pos)
   (let go ((rem objs)
            (res '()))
     (if (null? rem) res
         (let* ((o (car rem))
-               (ro (rectf o)))
-          (go
-           (cdr rem)
-           (if (or
-                (rectangle-contains ro pos)
-                (any (λ (oo) (rectangles-intersect (rectf oo) ro))
-                     res))
-               (cons o res)
-               res))))))
+               (ro (rectf o))
+               (add (or
+
+                     (rectangle-contains ro pos)
+                     (any (λ (oo) (rectangles-intersect (rectf oo) ro)) res)))
+               (res (if add (cons o res) res))
+               (rem (if add (lset-difference eq? objs res) (cdr rem))))
+          (go rem res)))))
 
 ;; continue suspect

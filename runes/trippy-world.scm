@@ -75,14 +75,12 @@
   (let* ((rel (relevant-transforms world pos))
          (g (λ (t) (cut apply-transform t <>)))
          (fs (map g rel)))
-    (display "w->t ")(display (length fs)) (newline)
     (chain fs pos)))
 
 (define (true->world world pos)
   (let* ((rel (reverse (relevant-transforms world pos)))
          (g (λ (t) (cut apply-transform-inverse t <>)))
          (fs (map g rel)))
-    (display "t->w ") (display (length fs)) (newline)
     (chain fs pos)))
 
 (define (make-world-empty size)
