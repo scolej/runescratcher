@@ -1,6 +1,7 @@
 (define-module (runes game)
   #:use-module (util test)
   #:use-module (runes pos)
+  #:use-module (runes runefs)
   #:use-module (runes trippy-world)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-26)
@@ -95,12 +96,6 @@
        (game-alert (format #f "no action for ~a" input))))))
 
 
-
-;; Make a vertical mirror function centreat at CY.
-(define (flipf cy)
-  (cut pos-map-components <>
-       (λ (x y)
-         (make-pos x (- (* 2 cy) y)))))
 
 (define-record-type <rune>
   (make-rune-raw id char effect) rune?

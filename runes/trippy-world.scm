@@ -12,6 +12,7 @@
   #:use-module (srfi srfi-26)
   #:use-module (srfi srfi-69)
   #:use-module (runes pos)
+  #:use-module (util random)
   #:use-module ((runes world) #:prefix base:)
   #:export
   (make-world-empty
@@ -47,10 +48,7 @@
     (hash-table-values (get-transforms world))
     transform-rect
     pos)
-   ;; todo sort-by? compare?
-   (λ (a b)
-     (< (transform-index a)
-        (transform-index b)))))
+   (comparing < transform-index)))
 
 ;; Apply the functions FS to X.
 ;; First element of F is applied last.
