@@ -30,11 +30,12 @@
     (game-set-input-handler! g top-level)
     g))
 
+;; A symbol for identifying the player in the world.
 (define player-name 'player)
 
 
 
-(define (arrow-to-cardinal-dir arr)
+(define (arrow->nsew arr)
   (case arr
     ((left) 'west)
     ((right) 'east)
@@ -67,7 +68,7 @@
   (case input
     ((left right up down)
      (let ((w (game-world game))
-           (d (arrow-to-cardinal-dir input)))
+           (d (arrow->nsew input)))
        (world-move w player-name d)))
     ((w)
      (game-set-input-handler! game rune-selection))
@@ -88,7 +89,7 @@
     (case input
       ((left right up down)
        (let* ((w (game-world game))
-              (d (arrow-to-cardinal-dir input))
+              (d (arrow->nsew input))
               (p (relative-pos (world-find w player-name) d)))
          (add-rune w p (make-rune #\r 'flip))
          (game-input-back-to-top-level game)))
@@ -99,13 +100,19 @@
 
 (define-record-type <rune>
   (make-rune-raw id char effect) rune?
+  ;; a symbol identifying this rune
   (id rune-id)
+  ;; the character used to draw the rune in the world
   (char rune-char)
+  ;; a symbol representing the effect of the rune
   (effect rune-effect))
 
+;; Makes a rune with a new unique id.
 (define make-rune
   (cut make-rune-raw (gensym "rune-") <> <>))
 
+;; Adds RUNE into world W at position POS, additionally adding the
+;; corresponding transform.
 (define (add-rune w pos rune)
   (let ((effect (rune-effect rune))
         (id (rune-id rune))
@@ -114,8 +121,8 @@
     (world-spawn w pos rune)
     (case effect
       ((flip)
-       (let ((f (flipf y))
-             (r (make-rectangle
-                 (- x 2) (+ x 2) (- y 2) (+ y 2))))
-         (world-add-transform w r f f id)))
+       (let ((f (flipv y))
+             (aoe (make-rectangle
+                   (- x 2) (+ x 2) (- y 2) (+ y 2))))
+         (world-add-transform w aoe f f id)))
       (else (error)))))

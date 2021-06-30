@@ -2,9 +2,9 @@
 ;;;
 ;;; A world where arbitrary transformations on positions are possible.
 ;;;
-;;; A "transformation" on a region may be added. Within this region,
-;;; all positions are subject to provided function mapping from a
-;;; "world" position to a "true" position.
+;;; A "transformation" on a region (area of effect) may be added. Within
+;;; this region, all positions are subject to the provided function mapping
+;;; from a "world" position to a "true" position.
 
 (define-module (runes trippy-world)
   #:use-module (srfi srfi-1)
@@ -30,9 +30,14 @@
 (define-record-type <transform>
   (make-transform i rect f fi)
   transform?
+  ;; an integer which creates an ordering between transforms.
+  ;; transforms with lower numbers are applied first.
   (i transform-index)
+  ;; transform's area of effect
   (rect transform-rect)
+  ;; transform's position mapping function
   (f transform-function)
+  ;; transform's inverse position mapping function
   (fi transform-function-inverse))
 
 (define-record-type <trippy-world>

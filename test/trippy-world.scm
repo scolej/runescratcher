@@ -26,9 +26,6 @@
     (world-add-transform
      w (make-rectangle l r b t) f f sym)))
 
-;; fixme t -> sym
-;; shadowing
-
 ;; Adds a flip transform in the middle of the test world.
 (define (add-flip-transform-middle w t)
   (add-flip-transform w 2 2 t))

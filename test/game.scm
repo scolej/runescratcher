@@ -57,15 +57,16 @@
 (test-case rune-move-aoe
   "writing and move beyond the area of effect of a rune"
   (let* ((g (make-game))
-         (w (make-world-empty 5))
+         (w (make-world-empty 7))
          (input (cut game-input g <>))
          (pos make-pos)
          (add-wall (cut world-add-wall w <>))
          (move-assert
+          ;; give input I to the game, and assert player position is P
           (λ (i p)
             (input i)
             (assert-equal
-             (list p 'player)
+             (list p 'wizard)
              (list (world-find w 'player)
                    (world-cell-get w p))))))
     ;; setup
@@ -73,21 +74,23 @@
     ;; - player will use the rune to move beyond the wall
     (game-set-input-handler! g top-level)
     (game-set-world! g w)
-    (world-spawn w (pos 2 0) 'wizard 'player)
-    (for-each add-wall (list (pos 2 2) (pos 2 3)))
-    ;; write!
+    (world-spawn w (pos 3 0) 'wizard 'player)
+    (for-each add-wall (list (pos 3 4) (pos 3 5)))
+    ;; move up so we can write the rune at the centre of the world: 3, 3
+    (for-each input '(up up))
+    (assert-equal (pos 3 2) (world-find w 'player))
+    ;; write the rune!
     (for-each input '(w a up))
     ;; verify assumptions about rune effect
     ;; - player is on the other side of rune
     ;; - what was previously the player is now a wall
-    (assert-equal (pos 2 2) (world-find w 'player))
-    (assert-equal 'wall (world-cell-get w (pos 2 0)))
+    (assert-equal (pos 3 4) (world-find w 'player))
+    (assert-equal 'wall (world-cell-get w (pos 3 2)))
     ;; try to move beyond rune effect area
-    (move-assert 'up (pos 2 3))
-    (move-assert 'up (pos 2 4))))
+    (move-assert 'up (pos 3 5))
+    (move-assert 'up (pos 3 6))))
 
 (define (all)
   (simple-movement)
   (write-runes)
-  ;; (rune-move-aoe)
-  )
+  (rune-move-aoe))

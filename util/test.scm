@@ -1,12 +1,9 @@
 (define-module (util test)
   #:use-module (system vm trace)
   #:use-module (ice-9 exceptions)
-  #:re-export
-  (call-with-trace)                     ; fixme did this actually work?
   #:export
   (assert-equal
    test-case
-   call-with-bt-exn
    trc))
 
 (define-exception-type &test-exception &assertion-failure
@@ -59,6 +56,7 @@
            (format #t "test: ~a (~a:~a)\n" descr f (1+ l))))
        (call-with-bt-exn (λ () body body* ...))))))
 
+;; Trace all calls within body of this expression.
 (define-syntax trc
   (syntax-rules ()
     ((trc exp exp* ...)

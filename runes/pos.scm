@@ -74,16 +74,19 @@
          (<= b1 t2)
          (>= t1 b2))))
 
-;; OBJS is a list of things which can be mapped to a rectangle using RECTF.
+;; OBJS is a list whose elements can be mapped to a rectangle using RECTF.
 ;; Finds the set of OBJS whose rectangles intersect with any other
-;; rectangle which eventually contains with POS.
-;; Order of results is unspecified.
+;; rectangle which eventually contains the seed position POS. Order of
+;; results is unspecified.
 (define (rectangle-tangle objs rectf pos)
-  (define (intersects? o1 o2)
-    (rectangles-intersect (rectf o1) (rectf o2)))
-  (define (contains-pos? o)
-    (rectangle-contains (rectf o) pos))
+  ;; Is object O1 relevant to the current set of relevent object OS?
   (define (relevant? o1 os)
+    ;; Do the rectangles obtained from O1 and O2 intersect?
+    (define (intersects? o1 o2)
+      (rectangles-intersect (rectf o1) (rectf o2)))
+    ;; Does the rectangle obtained from O contain the seed position?
+    (define (contains-pos? o)
+      (rectangle-contains (rectf o) pos))
     (or (contains-pos? o1)
         (any (λ (o2) (intersects? o1 o2)) os)))
   (let go ((rem objs) (res '()))
@@ -94,49 +97,3 @@
            (let ((res (cons o res)))
              (go (lset-difference eq? objs res) res))
            (go rem res))))))
-
-;; (define (rectangle-tangle objs rectf pos)
-;;   (let go ((rem objs)
-;;            (res '()))
-;;     (if (null? rem) res
-;;         (let* ((o (car rem))
-;;                (ro (rectf o))
-;;                (add (or
-;;                      (rectangle-contains ro pos)
-;;                      (any (λ (oo) (rectangles-intersect (rectf oo) ro)) res)))
-;;                (res (if add (cons o res) res))
-;;                (rem (if add (lset-difference eq? objs res) (cdr rem))))
-;;           (go rem res)))))
-
-;; (define (rectangle-tangle objs rectf pos)
-;;   (define (intersects? o1 o2)
-;;     (rectangles-intersect (rectf o1) (rectf o2)))
-;;   (define (contains-pos? o)
-;;     (rectangle-contains (rectf o) pos))
-;;   (define (relevant? o1 os)
-;;     (or (contains-pos? o1)
-;;         (any (λ (o2) (intersects? o1 o2)) os)))
-;;   (let go ((rem objs) (res '()))
-;;     (if (null? rem) res
-;;         (let ((o (car rem)))
-;;           (if (relevant? o res)
-;;               (let ((res (cons o res)))
-;;                 (go (lset-difference eq? objs res) res))
-;;               (go (cdr rem) res))))))
-
-;; (define (rectangle-tangle objs rectf pos)
-;;   (define (intersects? o1 o2)
-;;     (rectangles-intersect (rectf o1) (rectf o2)))
-;;   (define (contains-pos? o)
-;;     (rectangle-contains (rectf o) pos))
-;;   (define (relevant? o1 os)
-;;     (or (contains-pos? o1)
-;;         (any (λ (o2) (intersects? o1 o2)) os)))
-;;   (match-let go
-;;     (((o . rem) objs)
-;;      (res '()))
-;;     (cond ((relevant? o res)
-;;            (let ((res (cons o res)))
-;;              (go (lset-difference eq? objs res) res)))
-;;           ((null? rem) res)
-;;           (#t (go rem res)))))
