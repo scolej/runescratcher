@@ -50,7 +50,7 @@
                       ((eq? v 'wall) "#")
                       ((eq? v 'wizard) "@")
                       ((eq? v 'empty) " ")
-                      ((rune? v) (cons 'red "r"))
+                      ((rune? v) (cons 'red (string (rune-char v))))
                       (else "?"))))
             (cond
              ((string? c) (addstr stdscr c #:x x #:y (- h y 1)))

@@ -17,6 +17,7 @@
 
    make-rune
    rune?
+   rune-char
    game-add-rune))
 
 (define-record-type <game>
@@ -80,7 +81,13 @@
     ((escape)
      (game-input-back-to-top-level game))
     ((a s d f)
-     (game-set-input-handler! game (rune-direction-selection input)))
+     (game-set-input-handler!
+      game (rune-direction-selection
+            (case input
+              ((a) #\a)
+              ((s) #\s)
+              ((d) #\d)
+              ((f) #\f)))))
     (else
      (game-alert (format #f "no action for ~a" input)))))
 
@@ -91,7 +98,7 @@
        (let* ((w (game-world game))
               (d (arrow->nsew input))
               (p (relative-pos (world-find w player-name) d)))
-         (add-rune w p (make-rune #\r 'flip))
+         (add-rune w p (make-rune rune-char 'flip))
          (game-input-back-to-top-level game)))
       (else
        (game-alert (format #f "no action for ~a" input))))))
