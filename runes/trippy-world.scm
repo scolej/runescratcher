@@ -123,6 +123,9 @@
 (define (world-remove-transform world t)
   (hash-table-delete! (get-transforms world) t))
 
+(define (world-remove world pos)
+  (base:world-remove (base-world world) (world->true world pos)))
+
 (define world-spawn
   (case-lambda
    ((world pos value name)

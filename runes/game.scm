@@ -73,6 +73,8 @@
        (world-move w player-name d)))
     ((w)
      (game-set-input-handler! game rune-selection))
+    ((e)
+     (game-set-input-handler! game erase-direction-selection))
     (else
      (game-alert (format #f "no action for ~a" input)))))
 
@@ -99,6 +101,18 @@
               (d (arrow->nsew input))
               (p (relative-pos (world-find w player-name) d)))
          (add-rune w p (make-rune rune-char 'flip))
+         (game-input-back-to-top-level game)))
+      (else
+       (game-alert (format #f "no action for ~a" input))))))
+
+(define erase-direction-selection
+  (lambda (game input)
+    (case input
+      ((left right up down)
+       (let* ((w (game-world game))
+              (d (arrow->nsew input))
+              (p (relative-pos (world-find w player-name) d)))
+         (remove-rune w p)
          (game-input-back-to-top-level game)))
       (else
        (game-alert (format #f "no action for ~a" input))))))
@@ -133,3 +147,10 @@
                    (- x 2) (+ x 2) (- y 2) (+ y 2))))
          (world-add-transform w aoe f f id)))
       (else (error)))))
+
+;; Remove the rune at POS.
+(define (remove-rune w pos)
+  (let ((e (world-cell-get w pos)))
+    (when (rune? e)
+      (world-remove w pos)
+      (world-remove-transform w (rune-id e)))))

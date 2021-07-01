@@ -54,6 +54,48 @@
     (assert-equal #t (rune? (world-cell-get w r0)))
     (assert-equal p1 (world-find w 'player))))
 
+(test-case write-and-remove-1
+  "writing & removing runes where everything stays the same"
+  (let* ((g (make-test-game))
+         (w (game-world g))
+         (input (cut game-input g <>))
+         (p0 (make-pos 0 0))
+         (p1 (make-pos 2 0))
+         (r0 (make-pos 1 0)))
+    (assert-equal p0 (world-find w 'player))
+    (assert-equal 'empty (world-cell-get w r0))
+    ;; write a rune north of player
+    (for-each input '(w a right))
+    (assert-equal #t (rune? (world-cell-get w r0)))
+    (assert-equal p0 (world-find w 'player))
+    ;; erase rune (which is east of player)
+    (for-each input '(e right))
+    ;; rune is gone and player is in same position
+    (assert-equal 'empty (world-cell-get w r0))
+    (assert-equal p0 (world-find w 'player))))
+
+(test-case write-and-remove-2
+  "writing & removing runes where removal alters player's position"
+  (let* ((g (make-test-game))
+         (w (game-world g))
+         (input (cut game-input g <>))
+         (p0 (make-pos 0 0))
+         (p1 (make-pos 0 2))
+         (r0 (make-pos 0 1)))
+    (assert-equal p0 (world-find w 'player))
+    (assert-equal 'empty (world-cell-get w r0))
+    ;; write a rune north of player
+    (for-each input '(w a up))
+    (assert-equal #t (rune? (world-cell-get w r0)))
+    (assert-equal p1 (world-find w 'player))
+    ;; erase rune (which is now south of player)
+    (for-each input '(e down))
+    ;; rune is gone and player is back where they started
+    (assert-equal 'empty (world-cell-get w r0))
+    (assert-equal p0 (world-find w 'player))))
+
+
+
 (test-case rune-move-aoe
   "writing and move beyond the area of effect of a rune"
   (let* ((g (make-game))
@@ -93,4 +135,6 @@
 (define (all)
   (simple-movement)
   (write-runes)
+  (write-and-remove-1)
+  (write-and-remove-2)
   (rune-move-aoe))
