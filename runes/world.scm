@@ -24,7 +24,7 @@
   (make-world-empty
    make-world-from-port
    world-cell-get
-   world-cell-empty
+   world-cell-empty?
    world-move
    world-find
    world-remove

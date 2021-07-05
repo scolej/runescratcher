@@ -6,9 +6,9 @@
  (runes trippy-world)
  (runes game))
 
-(define world (call-with-input-file "map.txt" make-world-from-port))
+(define world (call-with-input-file "map2.txt" make-world-from-port))
 
-(world-spawn world (make-pos 0 0) 'wizard 'player)
+(world-spawn world (make-pos 25 10) 'wizard 'player)
 (world-spawn world (make-pos 3 3) 'monster)
 (world-add-wall world (make-pos 5 5))
 (world-add-wall world (make-pos 5 4))

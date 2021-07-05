@@ -18,7 +18,7 @@
   (make-world-empty
    make-world-from-port
    world-cell-get
-   world-cell-empty
+   world-cell-empty?
    world-move
    world-find
    world-remove
@@ -103,6 +103,10 @@
 
 (define (world-cell-get world pos)
   (base:world-cell-get
+   (base-world world) (world->true world pos)))
+
+(define (world-cell-empty? world pos)
+  (base:world-cell-empty?
    (base-world world) (world->true world pos)))
 
 ;; fixme parallelism

@@ -44,15 +44,26 @@
     (assert-equal p0 (world-find w 'player))
     (assert-equal 'empty (world-cell-get w r0))
     ;; cancel 1
-    (for-each input '(w escape))
-    (assert-equal 'empty (world-cell-get w r0))
-    ;; cancel 2
-    (for-each input '(w a escape))
+    (for-each input '(a escape))
     (assert-equal 'empty (world-cell-get w r0))
     ;; write!
-    (for-each input '(w a up))
+    (for-each input '(a up))
     (assert-equal #t (rune? (world-cell-get w r0)))
     (assert-equal p1 (world-find w 'player))))
+
+(test-case no-runes-on-walls
+  "cannot write rules on walls"
+  (let* ((g (make-test-game))
+         (w (game-world g))
+         (input (cut game-input g <>))
+         (p0 (make-pos 0 0))
+         (wp (make-pos 0 1)))
+    (world-add-wall w wp)
+    (assert-equal p0 (world-find w 'player))
+    ;; try to write rune on wall
+    (for-each input '(a up))
+    (assert-equal 'wall (world-cell-get w wp))
+    (assert-equal p0 (world-find w 'player))))
 
 (test-case write-and-remove-1
   "writing & removing runes where everything stays the same"
@@ -65,7 +76,7 @@
     (assert-equal p0 (world-find w 'player))
     (assert-equal 'empty (world-cell-get w r0))
     ;; write a rune north of player
-    (for-each input '(w a right))
+    (for-each input '(a right))
     (assert-equal #t (rune? (world-cell-get w r0)))
     (assert-equal p0 (world-find w 'player))
     ;; erase rune (which is east of player)
@@ -85,7 +96,7 @@
     (assert-equal p0 (world-find w 'player))
     (assert-equal 'empty (world-cell-get w r0))
     ;; write a rune north of player
-    (for-each input '(w a up))
+    (for-each input '(a up))
     (assert-equal #t (rune? (world-cell-get w r0)))
     (assert-equal p1 (world-find w 'player))
     ;; erase rune (which is now south of player)
@@ -93,8 +104,6 @@
     ;; rune is gone and player is back where they started
     (assert-equal 'empty (world-cell-get w r0))
     (assert-equal p0 (world-find w 'player))))
-
-
 
 (test-case rune-move-aoe
   "writing and move beyond the area of effect of a rune"
@@ -135,6 +144,7 @@
 (define (all)
   (simple-movement)
   (write-runes)
+  (no-runes-on-walls)
   (write-and-remove-1)
   (write-and-remove-2)
   (rune-move-aoe))

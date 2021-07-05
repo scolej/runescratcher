@@ -71,17 +71,6 @@
      (let ((w (game-world game))
            (d (arrow->nsew input)))
        (world-move w player-name d)))
-    ((w)
-     (game-set-input-handler! game rune-selection))
-    ((e)
-     (game-set-input-handler! game erase-direction-selection))
-    (else
-     (game-alert (format #f "no action for ~a" input)))))
-
-(define (rune-selection game input)
-  (case input
-    ((escape)
-     (game-input-back-to-top-level game))
     ((a s d f)
      (game-set-input-handler!
       game (rune-direction-selection
@@ -90,6 +79,8 @@
               ((s) #\s)
               ((d) #\d)
               ((f) #\f)))))
+    ((e)
+     (game-set-input-handler! game erase-direction-selection))
     (else
      (game-alert (format #f "no action for ~a" input)))))
 
@@ -139,14 +130,15 @@
         (id (rune-id rune))
         (x (pos-x pos))
         (y (pos-y pos)))
-    (world-spawn w pos rune)
-    (case effect
-      ((flip)
-       (let ((f (flipv y))
-             (aoe (make-rectangle
-                   (- x 2) (+ x 2) (- y 2) (+ y 2))))
-         (world-add-transform w aoe f f id)))
-      (else (error)))))
+    (when (world-cell-empty? w pos)
+      (world-spawn w pos rune)
+      (case effect
+        ((flip)
+         (let ((f (flipv y))
+               (aoe (make-rectangle
+                     (- x 2) (+ x 2) (- y 2) (+ y 2))))
+           (world-add-transform w aoe f f id)))
+        (else (error))))))
 
 ;; Remove the rune at POS.
 (define (remove-rune w pos)
