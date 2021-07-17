@@ -17,7 +17,7 @@
 
    make-rune
    rune?
-   rune-char
+   rune-kind
    game-add-rune))
 
 (define-record-type <game>
@@ -75,23 +75,23 @@
      (game-set-input-handler!
       game (rune-direction-selection
             (case input
-              ((a) #\a)
-              ((s) #\s)
-              ((d) #\d)
-              ((f) #\f)))))
+              ((a) 'flip)
+              ((s) 'fliph)
+              ((d) 'none)
+              ((f) 'none)))))
     ((e)
      (game-set-input-handler! game erase-direction-selection))
     (else
      (game-alert (format #f "no action for ~a" input)))))
 
-(define (rune-direction-selection rune-char)
+(define (rune-direction-selection kind)
   (lambda (game input)
     (case input
       ((left right up down)
        (let* ((w (game-world game))
               (d (arrow->nsew input))
               (p (relative-pos (world-find w player-name) d)))
-         (add-rune w p (make-rune rune-char 'flip))
+         (add-rune w p (make-rune kind))
          (game-input-back-to-top-level game)))
       (else
        (game-alert (format #f "no action for ~a" input))))))
@@ -111,34 +111,33 @@
 
 
 (define-record-type <rune>
-  (make-rune-raw id char effect) rune?
-  ;; a symbol identifying this rune
+  (make-rune-raw id kind) rune?
+  ;; a symbol uniquely identifying this rune
   (id rune-id)
-  ;; the character used to draw the rune in the world
-  (char rune-char)
   ;; a symbol representing the effect of the rune
-  (effect rune-effect))
+  (kind rune-kind))
 
 ;; Makes a rune with a new unique id.
 (define make-rune
-  (cut make-rune-raw (gensym "rune-") <> <>))
+  (cut make-rune-raw (gensym "rune-") <>))
 
 ;; Adds RUNE into world W at position POS, additionally adding the
 ;; corresponding transform.
 (define (add-rune w pos rune)
-  (let ((effect (rune-effect rune))
-        (id (rune-id rune))
-        (x (pos-x pos))
-        (y (pos-y pos)))
+  (let* ((kind (rune-kind rune))
+         (id (rune-id rune))
+         (x (pos-x pos))
+         (y (pos-y pos))
+         (aoe (make-rectangle
+               (- x 2) (+ x 2)
+               (- y 2) (+ y 2))))
     (when (world-cell-empty? w pos)
       (world-spawn w pos rune)
-      (case effect
-        ((flip)
-         (let ((f (flipv y))
-               (aoe (make-rectangle
-                     (- x 2) (+ x 2) (- y 2) (+ y 2))))
-           (world-add-transform w aoe f f id)))
-        (else (error))))))
+      (let ((f (case kind
+                 ((flip) (flipv y))
+                 ((fliph) (fliph x))
+                 (else (error)))))
+        (world-add-transform w aoe f f id)))))
 
 ;; Remove the rune at POS.
 (define (remove-rune w pos)

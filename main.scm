@@ -50,7 +50,11 @@
                       ((eq? v 'wall) "#")
                       ((eq? v 'wizard) "@")
                       ((eq? v 'empty) " ")
-                      ((rune? v) (cons 'red (string (rune-char v))))
+                      ((rune? v)
+                       (cons 'red (case (rune-kind v)
+                                    ((flip) "v")
+                                    ((fliph) "h")
+                                    (else "?"))))
                       (else "?"))))
             (cond
              ((string? c) (addstr stdscr c #:x x #:y (- h y 1)))
@@ -70,5 +74,13 @@
       (game-input game (symbol c))))
     (unless (eqv? c #\q) (go))))
 
-(go)
+(with-exception-handler
+ (λ (exn)
+   (with-output-to-file "exn.txt"
+     (λ ()
+       (format #t "Error: ~a\n\nTrace\n" exn)
+       (backtrace)
+       (exit 1))))
+ go)
+
 (endwin)

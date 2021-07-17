@@ -131,7 +131,7 @@
     (for-each input '(up up))
     (assert-equal (pos 3 2) (world-find w 'player))
     ;; write the rune!
-    (for-each input '(w a up))
+    (for-each input '(a up))
     ;; verify assumptions about rune effect
     ;; - player is on the other side of rune
     ;; - what was previously the player is now a wall
@@ -141,10 +141,38 @@
     (move-assert 'up (pos 3 5))
     (move-assert 'up (pos 3 6))))
 
+(test-case write-fliph-rune
+  "writing the horizontal flip rune"
+  (let* ((g (make-game))
+         (w (make-world-empty 7))
+         (input (cut game-input g <>))
+         (pos make-pos)
+         (add-wall (cut world-add-wall w <>))
+         (move-assert
+          ;; give input I to the game, and assert player position is P
+          (λ (i p)
+            (input i)
+            (assert-equal
+             (list p 'wizard)
+             (list (world-find w 'player)
+                   (world-cell-get w p))))))
+    (game-set-input-handler! g top-level)
+    (game-set-world! g w)
+    (world-spawn w (pos 2 3) 'wizard 'player)
+    (for-each add-wall (list (pos 0 0) (pos 4 3)))
+    (for-each input '(s right))
+    (assert-equal (pos 4 3) (world-find w 'player))
+    (for-each
+     (λ (p)
+       (assert-equal 'wall (world-cell-get w p)))
+     (list (pos 0 0) ; outside aoe
+           (pos 2 3)))))
+
 (define (all)
   (simple-movement)
   (write-runes)
   (no-runes-on-walls)
   (write-and-remove-1)
   (write-and-remove-2)
-  (rune-move-aoe))
+  (rune-move-aoe)
+  (write-fliph-rune))
